@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webserver
+  namespace: vk-sp
+spec:
+  containers:
+    - name: webserver
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          memory: "3Gi"
+          cpu: "250m"
+
+  tolerations:
+    - key: virtual-kubelet.io/provider
+      operator: Equal
+      value: stackpath
+      effect: NoSchedule
+  nodeSelector:
+    kubernetes.io/role: agent
+    type: virtual-kubelet

@@ -1,0 +1,59 @@
+name: Run code coverage
+
+on: pull_request
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.14.0'
+      - name: Generate coverage report
+        env:
+          TESTCOVERAGE_THRESHOLD: 84
+        run: |
+          GO_FILES=$(go list ./... |grep -v 'vendor')
+          echo $GO_FILES | xargs -t -n4 go test -coverprofile=coverage.out -covermode=count  -cover -timeout=30s -parallel=4
+          BASE_TOTAL=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          if (( $(echo "$BASE_TOTAL $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
+              echo "OK"
+          else
+              echo "Test coverage is below threshold"
+          fi
+          echo "BASE_TOTAL=$BASE_TOTAL" >> "$GITHUB_ENV"
+      - name: Checkout to the target
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.base_ref }}
+      - name: Generate coverage report
+        run: |
+          GO_FILES=$(go list ./... |grep -v 'vendor')
+          echo $GO_FILES | xargs -t -n4 go test -coverprofile=coverage.out -covermode=count  -cover -timeout=30s -parallel=4
+          TARGET_TOTAL=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          if (( $(echo "${{ env.BASE_TOTAL }} $TARGET_TOTAL" | awk '{print ($1 >= $2)}') )); then
+              echo "OK"
+          else
+              echo "Test coverage is below coverage on the target branch"
+          fi
+          echo "TARGET_TOTAL=$TARGET_TOTAL" >> "$GITHUB_ENV"
+      - name: Add PR comment
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "src branch coverage: ${{ env.BASE_TOTAL }}\ntarget branch coverage: ${{ env.TARGET_TOTAL }}"
+            })
+      - name: Fail build on low coverage
+        run: |
+          if (( $(echo "${{ env.BASE_TOTAL }} ${{ env.TARGET_TOTAL }} $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 < $2 || $1 < $3)}') )); then
+          exit 1;
+          fi

@@ -1,0 +1,20 @@
+resources:
+- namespace.yaml
+- vk-deployment.yaml
+- cluster-role.yaml
+- service-account.yaml
+
+namespace: default
+
+secretGenerator:
+- name: sp-vk-secrets
+  env: config.properties
+
+configMapGenerator:
+- name: sp-vk-location
+  literals:
+  - SP_CITY_CODE=DFW
+
+images:
+- name: stackpath.com/virtual-kubelet
+  newTag: 0.0.1
