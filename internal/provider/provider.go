@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
@@ -41,16 +42,17 @@ type StackpathProvider struct {
 	configMapLister corev1listers.ConfigMapLister
 	podLister       corev1listers.PodLister
 
-	stackpathClient *workload_client.EdgeCompute
-	apiConfig       *config.Config
-	cpu             string
-	memory          string
-	pods            string
-	storage         string
-	operatingSystem string
-	nodeName        string
-	startTime       time.Time
-	internalIP      string
+	stackpathClient    *workload_client.EdgeCompute
+	apiConfig          *config.Config
+	cpu                string
+	memory             string
+	pods               string
+	storage            string
+	operatingSystem    string
+	nodeName           string
+	startTime          time.Time
+	internalIP         string
+	daemonEndpointPort int32
 
 	podsTracker *PodsTracker
 
@@ -58,7 +60,7 @@ type StackpathProvider struct {
 }
 
 // NewStackpathProvider creates a stackpath virtual kubelet provider
-func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.EdgeCompute, apiConfig *config.Config, providerConfig nodeutil.ProviderConfig, internalIP string) (*StackpathProvider, error) {
+func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.EdgeCompute, apiConfig *config.Config, providerConfig nodeutil.ProviderConfig, internalIP string, daemonEndpointPort int32) (*StackpathProvider, error) {
 	log.G(ctx).Debug("creating a new StackPath provider")
 	var provider StackpathProvider
 	provider.configMapLister = providerConfig.ConfigMaps
@@ -69,6 +71,7 @@ func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.
 	provider.startTime = time.Now()
 	provider.apiConfig = apiConfig
 	provider.internalIP = internalIP
+	provider.daemonEndpointPort = daemonEndpointPort
 	provider.setNodeCapacity()
 	provider.logger = log.G(ctx)
 
@@ -218,6 +221,17 @@ func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, pod
 func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
 	// NOP. Not Implemented in this version
 	return nil
+}
+
+func (p *StackpathProvider) AttachToContainer(ctx context.Context, namespace, podName, containerName string, attach api.AttachIO) error {
+	// NOP. Not Implemented in this version
+	return nil
+}
+
+// GetMetricsResource gets the metrics for the node, including running pods
+func (p *StackpathProvider) GetMetricsResource(context.Context) ([]*dto.MetricFamily, error) {
+	// NOP. Not Implemented in this version
+	return nil, nil
 }
 
 // NotifyPods instructs the notifier to call the passed in function when the pod status changes.

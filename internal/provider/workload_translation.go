@@ -40,6 +40,7 @@ func (p *StackpathProvider) getWorkloadMetadataFrom(pod *v1.Pod) *workload_model
 			podNamespaceLabelKey: pod.Namespace,
 			nodeNameLabelKey:     p.nodeName,
 		},
+		Annotations: pod.Annotations,
 	}
 	return &metadata
 }

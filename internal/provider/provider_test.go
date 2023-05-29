@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/go-openapi/strfmt"
 	gomock "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen/model"
 	"github.com/google/uuid"
@@ -402,33 +400,13 @@ func createTestProvider(ctx context.Context, configMapMocker *mocks.MockConfigMa
 		return nil, err
 	}
 
-	provider, err := NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, "127.0.0.1")
+	provider, err := NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, "127.0.0.1", int32(10250))
 
 	if err != nil {
 		return nil, err
 	}
 
 	return provider, nil
-}
-
-func createContainerState(name string, containerState v1.ContainerState) *workload_models.V1ContainerStatus {
-	cs := workload_models.V1ContainerStatus{Name: name}
-	if containerState.Running != nil {
-		cs.Running = &workload_models.ContainerStatusRunning{StartedAt: strfmt.DateTime(time.Now())}
-	} else if containerState.Waiting != nil {
-		cs.Waiting = &workload_models.ContainerStatusWaiting{}
-	} else {
-		// terminated
-		cs.Terminated = &workload_models.ContainerStatusTerminated{
-			ExitCode:   1,
-			Message:    "A message",
-			Reason:     "A reason",
-			FinishedAt: strfmt.DateTime(time.Now()),
-			StartedAt:  strfmt.DateTime(time.Now().AddDate(0, 0, -1)),
-		}
-	}
-
-	return &cs
 }
 
 func createTestContainerSpec() workload_models.V1ContainerSpec {
@@ -459,6 +437,10 @@ func createTestPod(podName, podNamespace string) *v1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: podNamespace,
+			Annotations: map[string]string{
+				"workload.platform.stackpath.net/remote-management": "true",
+				"anycast.platform.stackpath.net":                    "true",
+			},
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{

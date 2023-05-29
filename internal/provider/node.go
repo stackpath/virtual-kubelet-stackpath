@@ -19,6 +19,8 @@ func (p *StackpathProvider) ConfigureNode(ctx context.Context, node *v1.Node) {
 	node.Status.Capacity = p.getNodeCapacity()
 	node.Status.Allocatable = p.getNodeCapacity()
 	node.Status.NodeInfo.OperatingSystem = p.operatingSystem
+	// node.Status.Addresses = p.getNodeAddresses()
+	// node.Status.DaemonEndpoints = p.getNodeDaemonEndpoints()
 }
 
 func (p *StackpathProvider) getNodeCapacity() v1.ResourceList {
@@ -30,6 +32,27 @@ func (p *StackpathProvider) getNodeCapacity() v1.ResourceList {
 	}
 
 	return resourceList
+}
+
+// getNodeAddresses returns a list of addresses for the node status
+// within Kubernetes.
+func (p *StackpathProvider) getNodeAddresses() []v1.NodeAddress {
+	return []v1.NodeAddress{
+		{
+			Type:    "InternalIP",
+			Address: p.internalIP,
+		},
+	}
+}
+
+// getNodeDaemonEndpoints returns NodeDaemonEndpoints for the node status
+// within Kubernetes.
+func (p *StackpathProvider) getNodeDaemonEndpoints() v1.NodeDaemonEndpoints {
+	return v1.NodeDaemonEndpoints{
+		KubeletEndpoint: v1.DaemonEndpoint{
+			Port: p.daemonEndpointPort,
+		},
+	}
 }
 
 func (p *StackpathProvider) setNodeCapacity() {
