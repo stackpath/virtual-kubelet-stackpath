@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
   - name: vk-sp
-    image: stackpath.com/virtual-kubelet:0.0.1
+    image: ghcr.io/stackpath/virtual-kubelet-stackpath:v0.1.0
     command: 
       - virtual-kubelet
     envFrom:
@@ -18,4 +18,20 @@ spec:
         valueFrom:
           fieldRef:
             fieldPath: status.podIP
+    volumeMounts:
+      - name: certs-volume
+        mountPath: /etc/virtual-kubelet
+  initContainers:
+    - name: cert-generator
+      image: alpine/openssl
+      command: ["sh", "-c"]
+      args:
+        - |
+          openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -subj "/CN=sp-vk" -keyout /etc/virtual-kubelet/key.pem -out /etc/virtual-kubelet/cert.pem
+      volumeMounts:
+        - name: certs-volume
+          mountPath: /etc/virtual-kubelet
+  volumes:
+    - name: certs-volume
+      emptyDir: {}
   serviceAccountName: virtual-kubelet-sp
