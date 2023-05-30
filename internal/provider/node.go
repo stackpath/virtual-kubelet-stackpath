@@ -19,8 +19,8 @@ func (p *StackpathProvider) ConfigureNode(ctx context.Context, node *v1.Node) {
 	node.Status.Capacity = p.getNodeCapacity()
 	node.Status.Allocatable = p.getNodeCapacity()
 	node.Status.NodeInfo.OperatingSystem = p.operatingSystem
-	// node.Status.Addresses = p.getNodeAddresses()
-	// node.Status.DaemonEndpoints = p.getNodeDaemonEndpoints()
+	node.Status.Addresses = p.getNodeAddresses()
+	node.Status.DaemonEndpoints = p.getNodeDaemonEndpoints()
 }
 
 func (p *StackpathProvider) getNodeCapacity() v1.ResourceList {

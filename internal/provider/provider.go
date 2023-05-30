@@ -2,11 +2,13 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"strconv"
 	"time"
 
+	"github.com/helloyi/go-sshclient"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
@@ -219,8 +221,71 @@ func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, pod
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
-	// NOP. Not Implemented in this version
-	return nil
+	client, err := sshclient.DialWithPasswd(p.getHostName(namespace, name, container), p.apiConfig.ClientID, p.apiConfig.ClientSecret)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	out := attach.Stdout()
+	if out != nil {
+		defer out.Close()
+	}
+
+	var (
+		stdout bytes.Buffer
+		stderr bytes.Buffer
+	)
+
+	in := attach.Stdin()
+	if in != nil {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				var msg = make([]byte, 512)
+				n, err := in.Read(msg)
+				if err != nil {
+					// Handle errors
+					return
+				}
+				if n > 0 {
+					if err = client.Cmd(string(msg[:n])).SetStdio(&stdout, &stderr).Run(); err != nil {
+						return
+					}
+				}
+			}
+		}()
+	}
+	if err != nil {
+		return err
+	}
+	if out != nil {
+		for {
+			select {
+			case <-ctx.Done():
+				break
+			default:
+			}
+
+			if _, err := io.Copy(out, &stdout); err != nil {
+				break
+			}
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	return ctx.Err()
+}
+
+func (p *StackpathProvider) getHostName(namespace string, name string, containerName string) string {
+	return p.apiConfig.StackID + "." + p.getInstanceName(namespace, name) + "." + containerName + "." + p.apiConfig.ClientID + "@container-console.edgeengine.io:9600"
 }
 
 func (p *StackpathProvider) AttachToContainer(ctx context.Context, namespace, podName, containerName string, attach api.AttachIO) error {
