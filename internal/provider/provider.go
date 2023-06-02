@@ -280,7 +280,6 @@ func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name,
 		for {
 			select {
 			case size := <-attach.Resize():
-				p.logger.Infof("new size: %d x %d", size.Width, size.Height)
 				err := session.WindowChange(int(size.Height), int(size.Width))
 				if err != nil {
 					p.logger.Info(err)
