@@ -133,11 +133,4 @@ require (
 
 require github.com/stretchr/testify v1.8.1
 
-require (
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/helloyi/go-sshclient v1.2.0 // indirect
-	github.com/kr/fs v0.1.0 // indirect
-	github.com/pkg/sftp v1.13.5 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-)
+require github.com/pmezard/go-difflib v1.0.0 // indirect

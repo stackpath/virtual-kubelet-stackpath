@@ -2,13 +2,14 @@
 package provider
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"net"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/helloyi/go-sshclient"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
@@ -16,6 +17,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	stats "github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
+	"golang.org/x/crypto/ssh"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
@@ -36,6 +38,10 @@ const (
 	podNameLabelKey = "vk-pod-name"
 
 	podNamespaceLabelKey = "vk-pod-namespace"
+
+	containerConsoleHost = "container-console.edgeengine.io"
+
+	containerConsolePort = 9600
 )
 
 // StackpathProvider is a struct that implements the virtual-kubelet provider interface
@@ -221,71 +227,116 @@ func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, pod
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
-	client, err := sshclient.DialWithPasswd(p.getHostName(namespace, name, container), p.apiConfig.ClientID, p.apiConfig.ClientSecret)
+
+	conf := &ssh.ClientConfig{
+		User:            p.getSSHUsername(namespace, name, container),
+		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		Auth: []ssh.AuthMethod{
+			ssh.Password(p.apiConfig.ClientSecret),
+		},
+	}
+
+	var conn *ssh.Client
+
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", containerConsoleHost, containerConsolePort), conf)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	out := attach.Stdout()
-	if out != nil {
-		defer out.Close()
-	}
-
-	var (
-		stdout bytes.Buffer
-		stderr bytes.Buffer
-	)
-
-	in := attach.Stdin()
-	if in != nil {
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-
-				var msg = make([]byte, 512)
-				n, err := in.Read(msg)
-				if err != nil {
-					// Handle errors
-					return
-				}
-				if n > 0 {
-					if err = client.Cmd(string(msg[:n])).SetStdio(&stdout, &stderr).Run(); err != nil {
-						return
-					}
-				}
-			}
-		}()
-	}
+	session, err := conn.NewSession()
 	if err != nil {
 		return err
 	}
-	if out != nil {
-		for {
-			select {
-			case <-ctx.Done():
-				break
-			default:
-			}
+	defer session.Close()
 
-			if _, err := io.Copy(out, &stdout); err != nil {
-				break
-			}
+	if attach.TTY() {
+		// Set up terminal modes
+		modes := ssh.TerminalModes{}
+		err = session.RequestPty("Xterm", 120, 60, modes)
+		if err != nil {
+			return err
 		}
 	}
+
+	sessionStdinPipe, err := session.StdinPipe()
 	if err != nil {
 		return err
+	}
+	defer sessionStdinPipe.Close()
+
+	sessionStdoutPipe, err := session.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	sessionStderrPipe, err := session.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	// goroutine that is responsible for listening 'resize' channel and update the session window measurements accordingly
+	go func() {
+		for {
+			select {
+			case size := <-attach.Resize():
+				p.logger.Infof("new size: %d x %d", size.Width, size.Height)
+				err := session.WindowChange(int(size.Height), int(size.Width))
+				if err != nil {
+					p.logger.Info(err)
+				}
+			case <-ctx.Done():
+				return
+			default:
+				time.Sleep(time.Millisecond * 500)
+			}
+		}
+	}()
+
+	// Channel that is used for sending errors happened during stdout pipe read.
+	c := make(chan error, 1)
+
+	aout := attach.Stdout()
+	if aout != nil {
+		defer aout.Close()
+	}
+	go func() {
+		_, err := io.Copy(aout, sessionStdoutPipe)
+		if err != nil {
+			// io.EOF or an error
+			c <- err
+			return
+		}
+	}()
+	go func() { io.Copy(aout, sessionStderrPipe) }()
+
+	ain := attach.Stdin()
+	if ain != nil {
+		go func() { io.Copy(sessionStdinPipe, ain) }()
+	}
+
+	// sending the command
+	go func() {
+		if err := session.Run(strings.Join(cmd, " ") + "\n"); err != nil {
+			c <- err
+			return
+		}
+	}()
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			break loop
+		case e := <-c:
+			p.logger.Debug(e)
+			break loop
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
 	}
 
 	return ctx.Err()
-}
-
-func (p *StackpathProvider) getHostName(namespace string, name string, containerName string) string {
-	return p.apiConfig.StackID + "." + p.getInstanceName(namespace, name) + "." + containerName + "." + p.apiConfig.ClientID + "@container-console.edgeengine.io:9600"
 }
 
 func (p *StackpathProvider) AttachToContainer(ctx context.Context, namespace, podName, containerName string, attach api.AttachIO) error {
@@ -315,4 +366,8 @@ func (p *StackpathProvider) NotifyPods(ctx context.Context, notifierCallback fun
 func (p *StackpathProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	// NOP. Not implemented in this version
 	return nil, nil
+}
+
+func (p *StackpathProvider) getSSHUsername(namespace string, name string, containerName string) string {
+	return p.apiConfig.StackID + "." + p.getInstanceName(namespace, name) + "." + containerName + "." + p.apiConfig.ClientID
 }
