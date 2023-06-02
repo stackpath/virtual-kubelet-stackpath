@@ -8,6 +8,8 @@ spec:
     image: ghcr.io/stackpath/virtual-kubelet-stackpath:v0.1.0
     command: 
       - virtual-kubelet
+    ports: 
+      - containerPort: 10251
     envFrom:
       - secretRef:
           name: sp-vk-secrets
@@ -18,6 +20,10 @@ spec:
         valueFrom:
           fieldRef:
             fieldPath: status.podIP
+      - name: APISERVER_CERT_LOCATION
+        value: /etc/virtual-kubelet/cert.pem
+      - name: APISERVER_KEY_LOCATION
+        value: /etc/virtual-kubelet/key.pem
     volumeMounts:
       - name: certs-volume
         mountPath: /etc/virtual-kubelet
