@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
@@ -38,10 +37,6 @@ const (
 	podNameLabelKey = "vk-pod-name"
 
 	podNamespaceLabelKey = "vk-pod-namespace"
-
-	containerConsoleHost = "container-console.edgeengine.io"
-
-	containerConsolePort = 9600
 )
 
 // StackpathProvider is a struct that implements the virtual-kubelet provider interface
@@ -50,17 +45,19 @@ type StackpathProvider struct {
 	configMapLister corev1listers.ConfigMapLister
 	podLister       corev1listers.PodLister
 
-	stackpathClient    *workload_client.EdgeCompute
-	apiConfig          *config.Config
-	cpu                string
-	memory             string
-	pods               string
-	storage            string
-	operatingSystem    string
-	nodeName           string
-	startTime          time.Time
-	internalIP         string
-	daemonEndpointPort int32
+	stackpathClient      *workload_client.EdgeCompute
+	apiConfig            *config.Config
+	cpu                  string
+	memory               string
+	pods                 string
+	storage              string
+	operatingSystem      string
+	nodeName             string
+	startTime            time.Time
+	internalIP           string
+	daemonEndpointPort   int32
+	containerConsoleHost string
+	containerConsolePort int32
 
 	podsTracker *PodsTracker
 
@@ -82,6 +79,8 @@ func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.
 	provider.daemonEndpointPort = daemonEndpointPort
 	provider.setNodeCapacity()
 	provider.logger = log.G(ctx)
+	provider.containerConsoleHost = "container-console.edgeengine.io"
+	provider.containerConsolePort = 9600
 
 	return &provider, nil
 }
@@ -238,101 +237,16 @@ func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name,
 
 	var conn *ssh.Client
 
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", containerConsoleHost, containerConsolePort), conf)
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", p.containerConsoleHost, p.containerConsolePort), conf)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	session, err := conn.NewSession()
+	cr := NewContainerRunner(conn, attach)
+	err = cr.Exec(ctx, cmd)
 	if err != nil {
-		return err
-	}
-	defer session.Close()
-
-	if attach.TTY() {
-		// Set up terminal modes
-		modes := ssh.TerminalModes{}
-		err = session.RequestPty("Xterm", 120, 60, modes)
-		if err != nil {
-			return err
-		}
-	}
-
-	sessionStdinPipe, err := session.StdinPipe()
-	if err != nil {
-		return err
-	}
-	defer sessionStdinPipe.Close()
-
-	sessionStdoutPipe, err := session.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	sessionStderrPipe, err := session.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	// goroutine that is responsible for listening 'resize' channel and update the session window measurements accordingly
-	go func() {
-		for {
-			select {
-			case size := <-attach.Resize():
-				err := session.WindowChange(int(size.Height), int(size.Width))
-				if err != nil {
-					p.logger.Info(err)
-				}
-			case <-ctx.Done():
-				return
-			default:
-				time.Sleep(time.Millisecond * 500)
-			}
-		}
-	}()
-
-	// Channel that is used for sending errors happened during stdout pipe read.
-	c := make(chan error, 1)
-
-	aout := attach.Stdout()
-	if aout != nil {
-		defer aout.Close()
-	}
-	go func() {
-		_, err := io.Copy(aout, sessionStdoutPipe)
-		if err != nil {
-			// io.EOF or an error
-			c <- err
-			return
-		}
-	}()
-	go func() { io.Copy(aout, sessionStderrPipe) }()
-
-	ain := attach.Stdin()
-	if ain != nil {
-		go func() { io.Copy(sessionStdinPipe, ain) }()
-	}
-
-	// sending the command
-	go func() {
-		if err := session.Run(strings.Join(cmd, " ") + "\n"); err != nil {
-			c <- err
-			return
-		}
-	}()
-
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			break loop
-		case e := <-c:
-			p.logger.Debug(e)
-			break loop
-		default:
-			time.Sleep(50 * time.Millisecond)
-		}
+		p.logger.Debug(err)
 	}
 
 	return ctx.Err()
