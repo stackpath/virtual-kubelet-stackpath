@@ -70,7 +70,7 @@ var (
 	k8sVersion     = "v1.25.0" // This should follow the version of k8s.io we are importing
 	binaryFilename = filepath.Base(os.Args[0])
 	description    = fmt.Sprintf("%s implements a node on a Kubernetes cluster using StackPath Workload API to run pods.", binaryFilename)
-	listenPort     = int32(10251)
+	listenPort     = int32(10250)
 )
 
 func init() {

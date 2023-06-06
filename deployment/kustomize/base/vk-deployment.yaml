@@ -9,7 +9,7 @@ spec:
     command: 
       - virtual-kubelet
     ports: 
-      - containerPort: 10251
+      - containerPort: 10250
     envFrom:
       - secretRef:
           name: sp-vk-secrets
