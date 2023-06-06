@@ -65,13 +65,13 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 			case <-ctx.Done():
 				return
 			default:
-				time.Sleep(time.Millisecond * 500)
+				time.Sleep(time.Millisecond * 50)
 			}
 		}
 	}()
 
 	// Channel that is used for sending errors happened during stdout pipe read.
-	c := make(chan error, 1)
+	e := make(chan error, 1)
 
 	aout := cr.attach.Stdout()
 	if aout != nil {
@@ -81,7 +81,7 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 		_, err := io.Copy(aout, sessionStdoutPipe)
 		if err != nil {
 			// io.EOF or an error
-			c <- err
+			e <- err
 			return
 		}
 	}()
@@ -92,21 +92,26 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 		go func() { io.Copy(sessionStdinPipe, ain) }()
 	}
 
+	done := false
 	// sending the command
 	go func() {
 		if err := session.Run(strings.Join(cmd, " ") + "\n"); err != nil {
-			c <- err
+			e <- err
 			return
 		}
+		done = true
 	}()
 
-loop:
+mainLoop:
 	for {
+		if done {
+			break
+		}
 		select {
 		case <-ctx.Done():
-			break loop
-		case err = <-c:
-			break loop
+			break mainLoop
+		case err = <-e:
+			break mainLoop
 		default:
 			time.Sleep(50 * time.Millisecond)
 		}

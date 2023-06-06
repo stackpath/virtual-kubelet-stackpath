@@ -131,6 +131,12 @@ require (
 	gotest.tools v2.2.0+incompatible
 )
 
-require github.com/stretchr/testify v1.8.1
+require (
+	github.com/gliderlabs/ssh v0.3.5
+	github.com/stretchr/testify v1.8.1
+)
 
-require github.com/pmezard/go-difflib v1.0.0 // indirect
+require (
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+)

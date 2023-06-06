@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
@@ -16,6 +17,8 @@ import (
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
 	mocks "github.com/stackpath/vk-stackpath-provider/internal/mocks"
+	"github.com/stackpath/vk-stackpath-provider/internal/sshtest"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
@@ -221,6 +224,93 @@ func TestGetPodStatus(t *testing.T) {
 	}
 }
 
+func TestRunInContainer(t *testing.T) {
+	ctx := context.Background()
+	stackPathClientMock := workload_client.EdgeCompute{}
+	var sshUsername string
+	var sshPassword string
+	var sshServerAddress string
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, &stackPathClientMock)
+	provider.containerConsolePort = 2222
+	provider.containerConsoleHost = "localhost"
+
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	ch := make(chan api.TermSize, 1)
+
+	testCases := []struct {
+		description      string
+		init             func()
+		commandToExecute []string
+		commandResponse  string
+		expectedError    error
+	}{
+		{
+			description: "Successfully runs a command",
+			init: func() {
+				sshUsername = "test.namespace-name-city-code-jfk-0.test.test"
+				sshPassword = "test"
+				sshServerAddress = "localhost:2222"
+			},
+			commandToExecute: []string{"uname"},
+			commandResponse:  "Linux",
+			expectedError:    nil,
+		},
+		{
+			description: "Authentication failure",
+			init: func() {
+				sshUsername = "bad_user"
+				sshPassword = "bad_password"
+				sshServerAddress = "localhost:2222"
+			},
+			commandToExecute: []string{},
+			commandResponse:  "",
+			expectedError:    errors.New("ssh: handshake failed: ssh: unable to authenticate, attempted methods [none password], no supported methods remain"),
+		},
+		{
+			description: "Failed to connect to SSH server",
+			init: func() {
+				sshServerAddress = "badHost:2222"
+			},
+			commandToExecute: []string{},
+			commandResponse:  "",
+			expectedError:    errors.New("dial tcp 127.0.0.1:2222: connect: connection refused"),
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			c.init()
+
+			command := c.commandToExecute
+			stdout := mocks.MockWriterCloser{}
+			stderr := mocks.MockWriterCloser{}
+			attachIO := mocks.NewMockExecIO(true, strings.NewReader(""), &stdout, &stderr, ch)
+
+			sshServer := sshtest.NewTestSSHServer(sshServerAddress, sshUsername, sshPassword)
+			// Start the server in the background
+			go func() {
+				sshServer.ListenAndServe()
+			}()
+			t.Cleanup(func() {
+				sshServer.Close()
+			})
+
+			sshServer.SetReturnString(c.commandResponse)
+
+			err = provider.RunInContainer(ctx, "namespace", "name", "test", command, attachIO)
+			if err != nil {
+				assert.Equal(t, c.expectedError.Error(), err.Error())
+				assert.Equal(t, string(stdout.Data), c.commandResponse)
+			} else {
+				assert.Equal(t, c.expectedError, nil)
+			}
+		})
+	}
+}
 func TestGetPod(t *testing.T) {
 	podName := "test-pod"
 	podNamespace := "test-ns"
