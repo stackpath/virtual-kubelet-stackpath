@@ -11,6 +11,7 @@ This feature enables you to use the Kubernetes control plane to create and manag
 - **Instance size selection**. Specify resource requirements for your pods using the Kubernetes `resources` field in your pod specification.
 - **Liveness and readiness probes**. Configure `liveness` and `readiness` probes for your pods using - the Kubernetes livenessProbe and readinessProbe fields in your pod specification.
 - **Private images using image pull secrets**. Use Kubernetes image pull secrets to securely pull private container images from a registry using the Kubernetes `imagePullSecrets` field in your pod specification.
+- **Run in container**. Run commands inside your pods by calling `kubectl exec` and specifying the pod and command.
 
 ## Limitations
 
@@ -42,6 +43,22 @@ To use the StackPath Edge Computing Virtual Kubelet provider, you'll need to hav
 ## Installing the Provider
 
 See [deployment details](./deployment/README.md)
+
+## Enabling Remote Management for Pods
+
+To enable remote management for pods, you can use the `workload.platform.stackpath.net/remote-management` annotation in the pod definition metadata. By setting this annotation to `true`, the remote management capabilities for the containers listed in the pod will be enabled. 
+
+To enable remote management, add the following annotation to your pod definition metadata:
+
+```yaml
+annotations:
+  workload.platform.stackpath.net/remote-management: "true"
+```
+By default, if this annotation is not provided or set to "false", remote management will be disabled.
+
+For more information about Edge Compute Workload Metadata and other terms related to StackPath Edge Compute, refer to the [Learn Edge Compute Terms](https://support.stackpath.com/hc/en-us/articles/360059500391-Learn-Edge-Compute-Terms) page.
+
+It is important to note that enabling remote management should be done with caution and only for trusted pods or in controlled environments where appropriate security measures are in place.
 
 ## Pod Spec File Examples
 
