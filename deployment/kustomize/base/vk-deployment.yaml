@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
   - name: vk-sp
-    image: ghcr.io/stackpath/virtual-kubelet-stackpath:v0.1.0
+    image: ghcr.io/stackpath/virtual-kubelet-stackpath:v0.2.0
     command: 
       - virtual-kubelet
     ports: 
