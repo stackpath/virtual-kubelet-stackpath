@@ -226,18 +226,16 @@ func TestGetPodStatus(t *testing.T) {
 
 func TestRunInContainer(t *testing.T) {
 	ctx := context.Background()
-	stackPathClientMock := workload_client.EdgeCompute{}
 	var sshUsername string
 	var sshPassword string
 	var sshServerAddress string
 
-	provider, err := createTestProvider(ctx, nil, nil, nil, &stackPathClientMock)
-	provider.containerConsolePort = 2222
-	provider.containerConsoleHost = "localhost"
-
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal("failed to create the test provider", err)
 	}
+	provider.containerConsolePort = 2222
+	provider.containerConsoleHost = "localhost"
 
 	ch := make(chan api.TermSize, 1)
 
@@ -311,6 +309,67 @@ func TestRunInContainer(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdatePod(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	err = provider.UpdatePod(ctx, nil)
+	assert.Equal(t, err, nil)
+}
+
+func TestAttachToContainer(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	err = provider.AttachToContainer(ctx, "", "", "", nil)
+	assert.Equal(t, err, nil)
+}
+
+func TestGetMetricsResource(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	_, err = provider.GetMetricsResource(ctx)
+	assert.Equal(t, err, nil)
+}
+
+func TestGetContainerLogs(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	_, err = provider.GetContainerLogs(ctx, "", "", "", api.ContainerLogOpts{})
+	assert.Equal(t, err, nil)
+}
+
+func TestGetStatsSummary(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	_, err = provider.GetStatsSummary(ctx)
+	assert.Equal(t, err, nil)
+}
+
 func TestGetPod(t *testing.T) {
 	podName := "test-pod"
 	podNamespace := "test-ns"

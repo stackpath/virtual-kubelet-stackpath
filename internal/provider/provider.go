@@ -167,7 +167,7 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 		return nil, err
 	}
 
-	if workloads == nil {
+	if len(workloads) == 0 {
 		log.G(ctx).Info("no workloads found")
 		return nil, nil
 	}
