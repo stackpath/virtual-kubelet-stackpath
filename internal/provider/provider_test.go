@@ -304,9 +304,9 @@ func TestRunInContainer(t *testing.T) {
 			err = provider.RunInContainer(ctx, "namespace", "name", "test", command, attachIO)
 			if err != nil {
 				assert.Equal(t, c.expectedError.Error(), err.Error())
-				assert.Equal(t, string(stdout.Data), c.commandResponse)
 			} else {
 				assert.Equal(t, c.expectedError, nil)
+				assert.Equal(t, string(stdout.Data), c.commandResponse)
 			}
 		})
 	}
