@@ -152,8 +152,11 @@ func runNode(ctx context.Context) error {
 				listenPort = int32(p)
 			}
 			p, err := spprovider.NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, os.Getenv("VKUBELET_POD_IP"), listenPort)
+			if err != nil {
+				return nil, nil, err
+			}
 			p.ConfigureNode(ctx, cfg.Node)
-			return p, nil, err
+			return p, nil, nil
 		},
 		withClient,
 		withTaint,

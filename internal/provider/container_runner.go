@@ -64,8 +64,8 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 				session.WindowChange(int(size.Height), int(size.Width))
 			case <-ctx.Done():
 				return
-			default:
-				time.Sleep(time.Millisecond * 50)
+			case <-time.After(time.Millisecond * 50):
+				continue
 			}
 		}
 	}()
@@ -112,8 +112,8 @@ mainLoop:
 			break mainLoop
 		case err = <-e:
 			break mainLoop
-		default:
-			time.Sleep(50 * time.Millisecond)
+		case <-time.After(time.Millisecond * 50):
+			continue
 		}
 	}
 
