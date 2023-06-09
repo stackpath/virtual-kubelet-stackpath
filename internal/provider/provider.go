@@ -57,7 +57,7 @@ type StackpathProvider struct {
 	internalIP           string
 	daemonEndpointPort   int32
 	containerConsoleHost string
-	containerConsolePort int32
+	containerConsolePort uint16
 
 	podsTracker *PodsTracker
 
@@ -252,19 +252,26 @@ func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name,
 	return ctx.Err()
 }
 
+// AttachToContainer attaches to the executing process of a container in the pod, copying data
+// between in/out/err and the container's stdin/stdout/stderr.
+//
+// NOP. Not Implemented in this version
 func (p *StackpathProvider) AttachToContainer(ctx context.Context, namespace, podName, containerName string, attach api.AttachIO) error {
-	// NOP. Not Implemented in this version
+
 	return nil
 }
 
 // GetMetricsResource gets the metrics for the node, including running pods
+//
+// NOP. Not Implemented in this version
 func (p *StackpathProvider) GetMetricsResource(context.Context) ([]*dto.MetricFamily, error) {
-	// NOP. Not Implemented in this version
 	return nil, nil
 }
 
 // NotifyPods instructs the notifier to call the passed in function when the pod status changes.
 // The provided pointer to a Pod is guaranteed to be used in a read-only fashion.
+//
+// NOP. Not implemented in this version.
 func (p *StackpathProvider) NotifyPods(ctx context.Context, notifierCallback func(*v1.Pod)) {
 	p.podsTracker = &PodsTracker{
 		podLister:      p.podLister,
@@ -276,11 +283,19 @@ func (p *StackpathProvider) NotifyPods(ctx context.Context, notifierCallback fun
 }
 
 // GetStatsSummary gets the stats for the node, including running pods
+//
+// NOP. Not implemented in this version
 func (p *StackpathProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	// NOP. Not implemented in this version
 	return nil, nil
 }
 
 func (p *StackpathProvider) getSSHUsername(namespace string, name string, containerName string) string {
-	return p.apiConfig.StackID + "." + p.getInstanceName(namespace, name) + "." + containerName + "." + p.apiConfig.ClientID
+	return fmt.Sprintf(
+		"%s.%s.%s.%s",
+		p.apiConfig.StackID,
+		p.getInstanceName(namespace, name),
+		containerName,
+		p.apiConfig.ClientID,
+	)
 }

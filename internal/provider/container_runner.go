@@ -4,10 +4,10 @@ import (
 	"context"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/sync/errgroup"
 )
 
 type ContainerRunner struct {
@@ -25,6 +25,7 @@ func NewContainerRunner(sshClient *ssh.Client, attachIO api.AttachIO) *Container
 
 // Exec executes a command on a remote server via SSH protocol.
 func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
+
 	session, err := cr.client.NewSession()
 	if err != nil {
 		return err
@@ -56,66 +57,55 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 		return err
 	}
 
-	// goroutine that is responsible for listening 'resize' channel and update the session window measurements accordingly
-	go func() {
+	ctx, cancel := context.WithCancel(ctx)
+	g, ctx := errgroup.WithContext(ctx)
+
+	//goroutine that is responsible for listening to the 'resize' channel and updating the session window measurements
+	g.Go(func() error {
 		for {
 			select {
 			case size := <-cr.attach.Resize():
 				session.WindowChange(int(size.Height), int(size.Width))
 			case <-ctx.Done():
-				return
-			case <-time.After(time.Millisecond * 50):
-				continue
+				return ctx.Err()
 			}
 		}
-	}()
-
-	// Channel that is used for sending errors happened during stdout pipe read.
-	e := make(chan error, 1)
+	})
 
 	aout := cr.attach.Stdout()
 	if aout != nil {
 		defer aout.Close()
 	}
-	go func() {
-		_, err := io.Copy(aout, sessionStdoutPipe)
+	g.Go(func() error {
+		_, err = io.Copy(aout, sessionStdoutPipe)
 		if err != nil {
-			// io.EOF or an error
-			e <- err
-			return
+			cancel()
+			return err
 		}
-	}()
-	go func() { io.Copy(aout, sessionStderrPipe) }()
+		return nil
+	})
+
+	g.Go(func() error {
+		io.Copy(aout, sessionStderrPipe)
+		return nil
+	})
 
 	ain := cr.attach.Stdin()
+
 	if ain != nil {
-		go func() { io.Copy(sessionStdinPipe, ain) }()
+		g.Go(func() error {
+			io.Copy(sessionStdinPipe, ain)
+			return nil
+		})
 	}
 
-	done := false
 	// sending the command
-	go func() {
-		if err := session.Run(strings.Join(cmd, " ") + "\n"); err != nil {
-			e <- err
-			return
-		}
-		done = true
-	}()
+	g.Go(func() error {
+		err := session.Run(strings.Join(cmd, " ") + "\n")
+		cancel()
+		return err
+	})
 
-mainLoop:
-	for {
-		if done {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			break mainLoop
-		case err = <-e:
-			break mainLoop
-		case <-time.After(time.Millisecond * 50):
-			continue
-		}
-	}
-
+	err = g.Wait()
 	return err
 }
