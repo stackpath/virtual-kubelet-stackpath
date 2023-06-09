@@ -101,8 +101,9 @@ func (p *StackpathProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 }
 
 // UpdatePod takes a Kubernetes Pod and updates it within the provider.
+//
+// NOP. Not Implemented in this version
 func (p *StackpathProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
-	// NOP. Not Implemented in this version
 	return nil
 }
 
@@ -218,8 +219,9 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 // GetContainerLogs returns the logs of a pod by name that is running as a StackPath workload
+//
+// NOP. Not Implemented in this version
 func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	// NOP. Not Implemented in this version
 	return nil, nil
 }
 
@@ -286,7 +288,6 @@ func (p *StackpathProvider) NotifyPods(ctx context.Context, notifierCallback fun
 //
 // NOP. Not implemented in this version
 func (p *StackpathProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
-	// NOP. Not implemented in this version
 	return nil, nil
 }
 
