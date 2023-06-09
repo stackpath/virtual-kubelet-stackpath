@@ -75,23 +75,22 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 	aout := cr.attach.Stdout()
 	if aout != nil {
 		defer aout.Close()
+		g.Go(func() error {
+			io.Copy(aout, sessionStdoutPipe)
+			return nil
+		})
 	}
-	g.Go(func() error {
-		_, err = io.Copy(aout, sessionStdoutPipe)
-		if err != nil {
-			cancel()
-			return err
-		}
-		return nil
-	})
 
-	g.Go(func() error {
-		io.Copy(aout, sessionStderrPipe)
-		return nil
-	})
+	aerr := cr.attach.Stderr()
+	if aerr != nil {
+		defer aerr.Close()
+		g.Go(func() error {
+			io.Copy(aerr, sessionStderrPipe)
+			return nil
+		})
+	}
 
 	ain := cr.attach.Stdin()
-
 	if ain != nil {
 		g.Go(func() error {
 			io.Copy(sessionStdinPipe, ain)
