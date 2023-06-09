@@ -18,8 +18,7 @@ import (
 type V1LogChunk struct {
 
 	// Raw log contents
-	// Format: byte
-	Bytes strfmt.Base64 `json:"bytes,omitempty"`
+	Bytes string `json:"bytes,omitempty"`
 }
 
 // Validate validates this v1 log chunk

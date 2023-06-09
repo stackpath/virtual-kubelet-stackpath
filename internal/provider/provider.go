@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
@@ -222,15 +223,23 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 //
 // NOP. Not Implemented in this version
 func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+	logs, err := p.getInstanceLogs(ctx, namespace, podName, containerName, opts)
+	if err != nil {
+		return nil, err
+	}
+	if logs != nil {
+		logStr := *logs
+		return io.NopCloser(strings.NewReader(logStr)), nil
+	}
 	return nil, nil
 }
 
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
-func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
+func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, podName, containerName string, cmd []string, attach api.AttachIO) error {
 
 	conf := &ssh.ClientConfig{
-		User:            p.getSSHUsername(namespace, name, container),
+		User:            p.getSSHUsername(namespace, podName, containerName),
 		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
 		Auth: []ssh.AuthMethod{
 			ssh.Password(p.apiConfig.ClientSecret),

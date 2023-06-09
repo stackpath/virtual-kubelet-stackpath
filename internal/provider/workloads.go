@@ -3,12 +3,16 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance_logs"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
 	"github.com/virtual-kubelet/virtual-kubelet/errdefs"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -109,6 +113,35 @@ func (p *StackpathProvider) deleteWorkload(ctx context.Context, podNamespace, po
 	}
 
 	return nil
+}
+
+func (p *StackpathProvider) getInstanceLogs(ctx context.Context, podNamespace, podName, containerName string, opts api.ContainerLogOpts) (*string, error) {
+
+	params := instance_logs.GetLogsParams{
+		StackID:       p.apiConfig.StackID,
+		WorkloadID:    p.getWorkloadSlug(podNamespace, podName),
+		ContainerName: &containerName,
+		InstanceName:  p.getInstanceName(podNamespace, podName),
+		Follow:        &opts.Follow,
+		Previous:      &opts.Previous,
+	}
+	sinceTime := strfmt.DateTime(opts.SinceTime)
+	params.SinceTime = &sinceTime
+
+	if opts.SinceSeconds > 0 {
+		sinceSeconds := strconv.Itoa(opts.SinceSeconds)
+		params.SinceSeconds = &sinceSeconds
+	}
+	if opts.LimitBytes > 0 {
+		limitBytes := strconv.Itoa(opts.LimitBytes)
+		params.LimitBytes = &limitBytes
+	}
+
+	logs, err := p.stackpathClient.InstanceLogs.GetLogs(&params, nil)
+	if err != nil {
+		return nil, NewStackPathError(err)
+	}
+	return &logs.Payload.Bytes, nil
 }
 
 // getInstanceName returns the name of the first instance running in a workload.

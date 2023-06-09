@@ -1868,7 +1868,6 @@
       "properties": {
         "bytes": {
           "type": "string",
-          "format": "byte",
           "description": "Raw log contents"
         }
       },
