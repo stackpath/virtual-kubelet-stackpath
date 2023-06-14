@@ -1,7 +1,6 @@
 name: Run code coverage
 
 on: pull_request
-# test
 jobs:
   run-tests:
     runs-on: ubuntu-latest
