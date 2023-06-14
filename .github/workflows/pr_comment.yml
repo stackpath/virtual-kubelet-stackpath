@@ -1,0 +1,31 @@
+name: Comment on the pull request
+on:
+  workflow_run:
+    workflows: ["Run code coverage"]
+    types:
+      - completed
+jobs:
+  pr_comment:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download comment artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: pr_comment
+      - shell: bash
+        run: |
+          COMMENT=`cat pr_comment.out`
+          echo "COMMENT=$COMMENT" >> "$GITHUB_ENV"
+      - name: Add PR comment
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "${{ env.COMMENT }}"
+            })
