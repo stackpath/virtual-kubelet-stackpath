@@ -40,7 +40,7 @@ jobs:
               echo "Test coverage is below coverage on the target branch"
           fi
           echo "TARGET_TOTAL=$TARGET_TOTAL" >> "$GITHUB_ENV"
-          echo "src branch coverage: ${{ env.BASE_TOTAL }}\ntarget branch coverage: ${{ env.TARGET_TOTAL }}" >> pr_comment.out
+          echo "src branch coverage: ${{ env.BASE_TOTAL }}\ntarget branch coverage: $TARGET_TOTAL" >> pr_comment.out
       - name: Save PR comment as an artifact
         uses: actions/upload-artifact@v3
         with:
