@@ -3,16 +3,20 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	stats "github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
+	"golang.org/x/crypto/ssh"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1listers "k8s.io/client-go/listers/core/v1"
@@ -41,16 +45,19 @@ type StackpathProvider struct {
 	configMapLister corev1listers.ConfigMapLister
 	podLister       corev1listers.PodLister
 
-	stackpathClient *workload_client.EdgeCompute
-	apiConfig       *config.Config
-	cpu             string
-	memory          string
-	pods            string
-	storage         string
-	operatingSystem string
-	nodeName        string
-	startTime       time.Time
-	internalIP      string
+	stackpathClient      *workload_client.EdgeCompute
+	apiConfig            *config.Config
+	cpu                  string
+	memory               string
+	pods                 string
+	storage              string
+	operatingSystem      string
+	nodeName             string
+	startTime            time.Time
+	internalIP           string
+	daemonEndpointPort   int32
+	containerConsoleHost string
+	containerConsolePort uint16
 
 	podsTracker *PodsTracker
 
@@ -58,7 +65,7 @@ type StackpathProvider struct {
 }
 
 // NewStackpathProvider creates a stackpath virtual kubelet provider
-func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.EdgeCompute, apiConfig *config.Config, providerConfig nodeutil.ProviderConfig, internalIP string) (*StackpathProvider, error) {
+func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.EdgeCompute, apiConfig *config.Config, providerConfig nodeutil.ProviderConfig, internalIP string, daemonEndpointPort int32) (*StackpathProvider, error) {
 	log.G(ctx).Debug("creating a new StackPath provider")
 	var provider StackpathProvider
 	provider.configMapLister = providerConfig.ConfigMaps
@@ -69,8 +76,11 @@ func NewStackpathProvider(ctx context.Context, stackpathClient *workload_client.
 	provider.startTime = time.Now()
 	provider.apiConfig = apiConfig
 	provider.internalIP = internalIP
+	provider.daemonEndpointPort = daemonEndpointPort
 	provider.setNodeCapacity()
 	provider.logger = log.G(ctx)
+	provider.containerConsoleHost = "container-console.edgeengine.io"
+	provider.containerConsolePort = 9600
 
 	return &provider, nil
 }
@@ -91,8 +101,9 @@ func (p *StackpathProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 }
 
 // UpdatePod takes a Kubernetes Pod and updates it within the provider.
+//
+// NOP. Not Implemented in this version
 func (p *StackpathProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
-	// NOP. Not Implemented in this version
 	return nil
 }
 
@@ -157,7 +168,7 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 		return nil, err
 	}
 
-	if workloads == nil {
+	if len(workloads) == 0 {
 		log.G(ctx).Info("no workloads found")
 		return nil, nil
 	}
@@ -208,20 +219,61 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 // GetContainerLogs returns the logs of a pod by name that is running as a StackPath workload
+//
+// NOP. Not Implemented in this version
 func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	// NOP. Not Implemented in this version
 	return nil, nil
 }
 
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
-	// NOP. Not Implemented in this version
+
+	conf := &ssh.ClientConfig{
+		User:            p.getSSHUsername(namespace, name, container),
+		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		Auth: []ssh.AuthMethod{
+			ssh.Password(p.apiConfig.ClientSecret),
+		},
+	}
+
+	var conn *ssh.Client
+
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", p.containerConsoleHost, p.containerConsolePort), conf)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	cr := NewContainerRunner(conn, attach)
+	err = cr.Exec(ctx, cmd)
+	if err != nil {
+		p.logger.Debug(err)
+	}
+
+	return ctx.Err()
+}
+
+// AttachToContainer attaches to the executing process of a container in the pod, copying data
+// between in/out/err and the container's stdin/stdout/stderr.
+//
+// NOP. Not Implemented in this version
+func (p *StackpathProvider) AttachToContainer(ctx context.Context, namespace, podName, containerName string, attach api.AttachIO) error {
+
 	return nil
+}
+
+// GetMetricsResource gets the metrics for the node, including running pods
+//
+// NOP. Not Implemented in this version
+func (p *StackpathProvider) GetMetricsResource(context.Context) ([]*dto.MetricFamily, error) {
+	return nil, nil
 }
 
 // NotifyPods instructs the notifier to call the passed in function when the pod status changes.
 // The provided pointer to a Pod is guaranteed to be used in a read-only fashion.
+//
+// NOP. Not implemented in this version.
 func (p *StackpathProvider) NotifyPods(ctx context.Context, notifierCallback func(*v1.Pod)) {
 	p.podsTracker = &PodsTracker{
 		podLister:      p.podLister,
@@ -233,7 +285,18 @@ func (p *StackpathProvider) NotifyPods(ctx context.Context, notifierCallback fun
 }
 
 // GetStatsSummary gets the stats for the node, including running pods
+//
+// NOP. Not implemented in this version
 func (p *StackpathProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
-	// NOP. Not implemented in this version
 	return nil, nil
+}
+
+func (p *StackpathProvider) getSSHUsername(namespace string, name string, containerName string) string {
+	return fmt.Sprintf(
+		"%s.%s.%s.%s",
+		p.apiConfig.StackID,
+		p.getInstanceName(namespace, name),
+		containerName,
+		p.apiConfig.ClientID,
+	)
 }

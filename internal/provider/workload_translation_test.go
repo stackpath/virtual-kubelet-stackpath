@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -1016,6 +1017,129 @@ func TestContainerWithCommand(t *testing.T) {
 			assert.ErrorContains(t, err, test.err, test.description)
 		} else {
 			assert.Equal(t, test.expected.Command, containerSpec.Command, test.description)
+		}
+	}
+}
+
+func TestGetWorkloadFrom(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	var tests = []struct {
+		description string
+		pod         v1.Pod
+		expected    *workload_models.V1Workload
+		err         string
+	}{
+		{
+			description: "successfully translates from v1.Pod to workload_model.V1Workload",
+			pod: v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+					Annotations: map[string]string{
+						"workload.platform.stackpath.net/remote-management": "true",
+						"anycast.platform.stackpath.net":                    "true",
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Name:    "nginx",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 8080,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &workload_models.V1Workload{
+				Name: "namespace-name",
+				Slug: "namespace-name",
+				Metadata: &workload_models.V1Metadata{
+					Labels: map[string]string{
+						podNameLabelKey:      "name",
+						podNamespaceLabelKey: "namespace",
+						nodeNameLabelKey:     "vk-mock",
+					},
+					Annotations: map[string]string{
+						"workload.platform.stackpath.net/remote-management": "true",
+						"anycast.platform.stackpath.net":                    "true",
+					},
+				},
+				Spec: &workload_models.V1WorkloadSpec{
+					Containers: workload_models.V1ContainerSpecMapEntry{
+						"nginx": workload_models.V1ContainerSpec{
+							Env:     workload_models.V1EnvironmentVariableMapEntry{},
+							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Ports: workload_models.V1InstancePortMapEntry{"http": workload_models.V1InstancePort{
+								Port:                        8080,
+								EnableImplicitNetworkPolicy: false,
+								Protocol:                    "TCP",
+							}},
+							Resources: &workload_models.V1ResourceRequirements{
+								Limits: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+								Requests: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+							},
+							VolumeMounts: []*workload_models.V1InstanceVolumeMount{},
+						},
+					},
+					ImagePullCredentials: workload_models.V1WrappedImagePullCredentials{},
+					NetworkInterfaces: []*workload_models.V1NetworkInterface{
+						{
+							EnableOneToOneNat: true,
+							IPFamilies:        []*workload_models.V1IPFamily{workload_models.NewV1IPFamily("IPv4")},
+							IPV6Subnet:        "",
+							Network:           "default",
+							Subnet:            "",
+						},
+					},
+					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
+				},
+				Targets: workload_models.V1TargetMapEntry{
+					"city-code": workload_models.V1Target{
+						Spec: &workload_models.V1TargetSpec{
+							DeploymentScope: "cityCode",
+							Deployments: &workload_models.V1DeploymentSpec{
+								MaxReplicas: 1,
+								MinReplicas: 1,
+								Selectors: []*workload_models.V1MatchExpression{
+									{
+										Key:      "cityCode",
+										Operator: "in",
+										Values:   []string{testCityCode},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		workload, err := provider.getWorkloadFrom(&test.pod)
+		if err != nil {
+			assert.ErrorContains(t, err, test.err, test.description)
+		} else {
+			assert.Equal(t, test.expected, workload, test.description)
 		}
 	}
 }

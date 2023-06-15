@@ -16,5 +16,5 @@ configMapGenerator:
   - SP_CITY_CODE=DFW
 
 images:
-- name: stackpath.com/virtual-kubelet
-  newTag: 0.0.1
+- name: ghcr.io/stackpath/virtual-kubelet-stackpath
+  newTag: v0.2.0

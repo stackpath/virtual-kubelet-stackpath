@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	logruslogger "github.com/virtual-kubelet/virtual-kubelet/log/logrus"
 	"github.com/virtual-kubelet/virtual-kubelet/node"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	v1 "k8s.io/api/core/v1"
 )
@@ -68,7 +70,7 @@ var (
 	k8sVersion     = "v1.25.0" // This should follow the version of k8s.io we are importing
 	binaryFilename = filepath.Base(os.Args[0])
 	description    = fmt.Sprintf("%s implements a node on a Kubernetes cluster using StackPath Workload API to run pods.", binaryFilename)
-	listenPort     = 10250
+	listenPort     = int32(10250)
 )
 
 func init() {
@@ -142,14 +144,25 @@ func runNode(ctx context.Context) error {
 	// Create and run node
 	node, err := nodeutil.NewNode(inputs.nodeName,
 		func(cfg nodeutil.ProviderConfig) (nodeutil.Provider, node.NodeProvider, error) {
-			p, err := spprovider.NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, os.Getenv("VKUBELET_POD_IP"))
+			if port := os.Getenv("KUBELET_PORT"); port != "" {
+				p, err := strconv.Atoi(port)
+				if err != nil {
+					return nil, nil, err
+				}
+				listenPort = int32(p)
+			}
+			p, err := spprovider.NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, os.Getenv("VKUBELET_POD_IP"), listenPort)
+			if err != nil {
+				return nil, nil, err
+			}
 			p.ConfigureNode(ctx, cfg.Node)
-			return p, nil, err
+			return p, nil, nil
 		},
 		withClient,
 		withTaint,
 		withVersion,
 		withTLSConfig,
+		withWebhookAuth,
 		configureRoutes,
 		func(cfg *nodeutil.NodeConfig) error {
 			cfg.InformerResyncPeriod = inputs.fullResyncPeriod
@@ -198,6 +211,11 @@ func withTLSConfig(cfg *nodeutil.NodeConfig) error {
 		return nil
 	}
 	return nodeutil.WithTLSConfig(nodeutil.WithKeyPairFromPath(inputs.serverCertPath, inputs.serverKeyPath), withCA)(cfg)
+}
+
+func withWebhookAuth(cfg *nodeutil.NodeConfig) error {
+	cfg.Handler = api.InstrumentHandler(nodeutil.WithAuth(nodeutil.NoAuth(), cfg.Handler))
+	return nil
 }
 
 // withCA sets up the client CA for the node

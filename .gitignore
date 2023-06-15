@@ -21,4 +21,4 @@ go.work
 .DS_Store
 bin/
 .vscode/settings.json
-docs/resources/vk-deployment-local.yaml
+docs/resources/*

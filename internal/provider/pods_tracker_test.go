@@ -199,6 +199,30 @@ func TestRemoveStalePods(t *testing.T) {
 				// Mocks getting a list of pods indexed in k8s cluster
 				k8sPodsLister.EXPECT().List(gomock.Any()).Return(nil, fmt.Errorf("Error")).Times(1)
 			},
+		}, {
+			description: "fail to remove stale pod (workload) due to an error happened on getting a list of workloads",
+			initMockedCalls: func() {
+				// Mocks getting a list of pods indexed in k8s cluster
+				k8sPodsLister.EXPECT().List(gomock.Any()).Return(k8sPods, nil).Times(1)
+
+				// Mocks GetWorkloads() that returns two workloads, one is active,
+				// second one is considered to be stale (no info in k8s cluster about it)
+				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("Error")).Times(1)
+			},
+		}, {
+			description: "No stale pods were removed because there's no any on the provider side.",
+			initMockedCalls: func() {
+				// Mocks getting a list of pods indexed in k8s cluster
+				k8sPodsLister.EXPECT().List(gomock.Any()).Return(k8sPods, nil).Times(1)
+
+				// Mocks GetWorkloads() that returns zero workloads
+				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(
+					&workloads.GetWorkloadsOK{
+						Payload: &workload_models.V1GetWorkloadsResponse{
+							Results: []*workload_models.V1Workload{},
+						},
+					}, nil).Times(1)
+			},
 		},
 	}
 
@@ -494,6 +518,7 @@ func TestBeginPodTracking(t *testing.T) {
 	}
 	podStatusUpdateInterval = 1
 	stalePodCleanupInterval = 1
+
 	podLister.EXPECT().List(gomock.Any()).Return(nil, nil).AnyTimes()
 	wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadsOK{
 		Payload: &workload_models.V1GetWorkloadsResponse{
@@ -501,30 +526,4 @@ func TestBeginPodTracking(t *testing.T) {
 		},
 	}, nil).AnyTimes()
 	podsTracker.BeginPodTracking(ctx)
-}
-
-func TestGetPodFromListerByInstance(t *testing.T) {
-	podName := fmt.Sprintf("test-pod-%s", uuid.New().String())
-	podNamespace := fmt.Sprintf("test-ns-%s", uuid.New().String())
-	mockController := gomock.NewController(t)
-	defer mockController.Finish()
-	ctx := context.TODO()
-
-	podLister := mocks.NewMockPodLister(mockController)
-	mockPodsNamespaceLister := mocks.NewMockPodNamespaceLister(mockController)
-
-	provider, err := createTestProvider(ctx, mocks.NewMockConfigMapLister(mockController), mocks.NewMockSecretLister(mockController), podLister, nil)
-	if err != nil {
-		t.Fatal("failed to create the test provider", err)
-	}
-
-	// In case of 404 error, we still should get a pod object that is created based on the namespace and name.
-	podLister.EXPECT().Pods(podNamespace).Return(mockPodsNamespaceLister).Times(1)
-	mockPodsNamespaceLister.EXPECT().Get(podName).Return(nil, &APIError{statusCode: 404, message: "error message", requestID: "123"}).Times(1)
-
-	pod, err := provider.getPodFromListerByInstance(ctx, &workload_models.Workloadv1Instance{}, &podNamespace, &podName)
-
-	assert.Equal(t, podNamespace, pod.Namespace)
-	assert.Equal(t, podName, pod.Name)
-	assert.Nil(t, err)
 }

@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/go-openapi/strfmt"
 	gomock "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen/model"
 	"github.com/google/uuid"
@@ -18,6 +17,8 @@ import (
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
 	mocks "github.com/stackpath/vk-stackpath-provider/internal/mocks"
+	"github.com/stackpath/vk-stackpath-provider/internal/sshtest"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
@@ -223,6 +224,152 @@ func TestGetPodStatus(t *testing.T) {
 	}
 }
 
+func TestRunInContainer(t *testing.T) {
+	ctx := context.Background()
+	var sshUsername string
+	var sshPassword string
+	var sshServerAddress string
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	provider.containerConsolePort = 2222
+	provider.containerConsoleHost = "localhost"
+
+	ch := make(chan api.TermSize, 1)
+
+	testCases := []struct {
+		description      string
+		init             func()
+		commandToExecute []string
+		commandResponse  string
+		expectedError    error
+	}{
+		{
+			description: "Successfully runs a command",
+			init: func() {
+				sshUsername = "test.namespace-name-city-code-jfk-0.test.test"
+				sshPassword = "test"
+				sshServerAddress = "localhost:2222"
+			},
+			commandToExecute: []string{"uname"},
+			commandResponse:  "Linux",
+			expectedError:    nil,
+		},
+		{
+			description: "Authentication failure",
+			init: func() {
+				sshUsername = "bad_user"
+				sshPassword = "bad_password"
+				sshServerAddress = "localhost:2222"
+			},
+			commandToExecute: []string{},
+			commandResponse:  "",
+			expectedError:    errors.New("ssh: handshake failed: ssh: unable to authenticate, attempted methods [none password], no supported methods remain"),
+		},
+		{
+			description: "Failed to connect to SSH server",
+			init: func() {
+				sshServerAddress = "badHost:2222"
+			},
+			commandToExecute: []string{},
+			commandResponse:  "",
+			expectedError:    errors.New("dial tcp 127.0.0.1:2222: connect: connection refused"),
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			c.init()
+
+			command := c.commandToExecute
+			stdout := mocks.MockWriterCloser{}
+			stderr := mocks.MockWriterCloser{}
+			attachIO := mocks.NewMockExecIO(true, strings.NewReader(""), &stdout, &stderr, ch)
+
+			sshServer := sshtest.NewTestSSHServer(sshServerAddress, sshUsername, sshPassword)
+			// Start the server in the background
+			go func() {
+				sshServer.ListenAndServe()
+			}()
+			t.Cleanup(func() {
+				sshServer.Close()
+			})
+
+			sshServer.SetReturnString(c.commandResponse)
+
+			err = provider.RunInContainer(ctx, "namespace", "name", "test", command, attachIO)
+			if err != nil {
+				assert.Assert(t, c.expectedError != nil)
+			} else {
+				assert.Equal(t, c.expectedError, nil)
+				assert.Equal(t, string(stdout.Data), c.commandResponse)
+			}
+		})
+	}
+}
+
+func TestUpdatePod(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	err = provider.UpdatePod(ctx, nil)
+	assert.Equal(t, err, nil)
+}
+
+func TestAttachToContainer(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	err = provider.AttachToContainer(ctx, "", "", "", nil)
+	assert.Equal(t, err, nil)
+}
+
+func TestGetMetricsResource(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	_, err = provider.GetMetricsResource(ctx)
+	assert.Equal(t, err, nil)
+}
+
+func TestGetContainerLogs(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	_, err = provider.GetContainerLogs(ctx, "", "", "", api.ContainerLogOpts{})
+	assert.Equal(t, err, nil)
+}
+
+func TestGetStatsSummary(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	_, err = provider.GetStatsSummary(ctx)
+	assert.Equal(t, err, nil)
+}
+
 func TestGetPod(t *testing.T) {
 	podName := "test-pod"
 	podNamespace := "test-ns"
@@ -402,33 +549,13 @@ func createTestProvider(ctx context.Context, configMapMocker *mocks.MockConfigMa
 		return nil, err
 	}
 
-	provider, err := NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, "127.0.0.1")
+	provider, err := NewStackpathProvider(ctx, stackpathClient, apiConfig, cfg, "127.0.0.1", int32(10250))
 
 	if err != nil {
 		return nil, err
 	}
 
 	return provider, nil
-}
-
-func createContainerState(name string, containerState v1.ContainerState) *workload_models.V1ContainerStatus {
-	cs := workload_models.V1ContainerStatus{Name: name}
-	if containerState.Running != nil {
-		cs.Running = &workload_models.ContainerStatusRunning{StartedAt: strfmt.DateTime(time.Now())}
-	} else if containerState.Waiting != nil {
-		cs.Waiting = &workload_models.ContainerStatusWaiting{}
-	} else {
-		// terminated
-		cs.Terminated = &workload_models.ContainerStatusTerminated{
-			ExitCode:   1,
-			Message:    "A message",
-			Reason:     "A reason",
-			FinishedAt: strfmt.DateTime(time.Now()),
-			StartedAt:  strfmt.DateTime(time.Now().AddDate(0, 0, -1)),
-		}
-	}
-
-	return &cs
 }
 
 func createTestContainerSpec() workload_models.V1ContainerSpec {
@@ -459,6 +586,10 @@ func createTestPod(podName, podNamespace string) *v1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: podNamespace,
+			Annotations: map[string]string{
+				"workload.platform.stackpath.net/remote-management": "true",
+				"anycast.platform.stackpath.net":                    "true",
+			},
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
