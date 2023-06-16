@@ -701,7 +701,8 @@
           "200": {
             "description": "(streaming responses)",
             "schema": {
-              "$ref": "#/definitions/v1LogChunk"
+              "type": "string",
+              "format": "binary"
             }
           },
           "401": {
@@ -1862,16 +1863,6 @@
         }
       },
       "description": "Describes mounting a volume on containers or vms in an instance"
-    },
-    "v1LogChunk": {
-      "type": "object",
-      "properties": {
-        "bytes": {
-          "type": "string",
-          "description": "Raw log contents"
-        }
-      },
-      "description": "A chunk of raw log data"
     },
     "v1MatchExpression": {
       "type": "object",

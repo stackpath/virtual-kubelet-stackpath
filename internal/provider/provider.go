@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
@@ -220,18 +219,9 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 // GetContainerLogs returns the logs of a pod by name that is running as a StackPath workload
-//
-// NOP. Not Implemented in this version
 func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	logs, err := p.getInstanceLogs(ctx, namespace, podName, containerName, opts)
-	if err != nil {
-		return nil, err
-	}
-	if logs != nil {
-		logStr := *logs
-		return io.NopCloser(strings.NewReader(logStr)), nil
-	}
-	return nil, nil
+	reader := p.getInstanceLogsReader(ctx, namespace, podName, containerName, opts)
+	return reader, nil
 }
 
 // RunInContainer executes a command in a container in the pod, copying data

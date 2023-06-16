@@ -1,4 +1,4 @@
-# Virtual Kubelet Provider for Stackpath Edge Compute
+# Virtual Kubelet Provider for StackPath Edge Compute
 
 StackPath's Virtual Kubelet (VK) provider allows you to leverage the power of Kubernetes (K8s) to deploy and manage your applications across StackPath's expansive Edge Compute network, increasing scalability and reliability, while decreasing latency.
 
@@ -15,7 +15,7 @@ This feature enables you to use the Kubernetes control plane to create and manag
 
 ## Limitations
 
-- **Limited instance types**. Stackpath Edge Compute product currently supports five instance types: SP-1 through SP-5 ([SP// Containers](https://www.stackpath.com/products/containers/)). The provider will launch the smallest instance that provides the resources defined in the pod specification. If the pod specification requires more resources than what is available in the SP-5 instance, the provider will provision the SP-5 instance type.
+- **Limited instance types**. StackPath Edge Compute product currently supports five instance types: SP-1 through SP-5 ([SP// Containers](https://www.stackpath.com/products/containers/)). The provider will launch the smallest instance that provides the resources defined in the pod specification. If the pod specification requires more resources than what is available in the SP-5 instance, the provider will provision the SP-5 instance type.
 Here are the specifications for each of the available instance types:
 
     | Subscription | Cores | RAM  |
@@ -26,11 +26,11 @@ Here are the specifications for each of the available instance types:
     | SP-4 | 4 | 16GB |
     | SP-5 | 8 | 32GB |
 
-- **Limited network control**. The provider currently does not support custom network settings for the Stackpath workload. The workload will run with a public and private IP, and network policies must be created separately.
+- **Limited network control**. The provider currently does not support custom network settings for the StackPath workload. The workload will run with a public and private IP, and network policies must be created separately.
 - **Limited probe support**. The provider currently only supports the `httpGet` and `tcpSocket` probes for liveness and readiness checks. Other probe types, such as `grpc` or `exec`, are not currently supported.
-- **Limited Kubernetes features**. The provider only supports some of the Kubernetes pod specification as supported by the Stackpath edge compute platform, there may be some advanced features that are not yet supported or that require additional configuration. **The provider will ignore any specification that aren't supported when creating the Stackpath workload**.
-In addition, the workloads created on the Stackpath platform will not have network access to the Kubernetes API or any pods running in nodes that aren't in the virtual kubelet provider.
-- **Pod name length**. The provider is subject to the limitations of Stackpath's workload slugs, which are limited to 63 characters. The provider constructs the slug by concatenating the namespace with the pod name separated by a dash. It is important to ensure that this string does not exceed 63 characters, as exceeding this limit will prevent the pod from being created.
+- **Limited Kubernetes features**. The provider only supports some of the Kubernetes pod specification as supported by the StackPath edge compute platform, there may be some advanced features that are not yet supported or that require additional configuration. **The provider will ignore any specification that aren't supported when creating the StackPath workload**.
+In addition, the workloads created on the StackPath platform will not have network access to the Kubernetes API or any pods running in nodes that aren't in the virtual kubelet provider.
+- **Pod name length**. The provider is subject to the limitations of StackPath's workload slugs, which are limited to 63 characters. The provider constructs the slug by concatenating the namespace with the pod name separated by a dash. It is important to ensure that this string does not exceed 63 characters, as exceeding this limit will prevent the pod from being created.
 
 ## Getting Started
 
@@ -70,9 +70,9 @@ Note that these examples are provided for demonstration purposes only and may no
 
 ## Conclusion
 
-The Virtual Kubelet Provider for Stackpath Edge Compute is a useful tool for deploying Kubernetes pods on StackPath's highly performant and distributed edge infrastructure. With this provider, you can leverage the power of Kubernetes to deploy and manage your applications, while taking advantage of StackPath's Edge Compute capabilities.
+The Virtual Kubelet Provider for StackPath Edge Compute is a useful tool for deploying Kubernetes pods on StackPath's highly performant and distributed edge infrastructure. With this provider, you can leverage the power of Kubernetes to deploy and manage your applications, while taking advantage of StackPath's Edge Compute capabilities.
 
-While the provider has some limitations, it is a great option for workloads that need to be close to end-users and require low latency or high bandwidth. By seamlessly extending your Kubernetes clusters to the edge with the Virtual Kubelet Provider for Stackpath Edge Compute, you can improve the performance and reliability of your applications.
+While the provider has some limitations, it is a great option for workloads that need to be close to end-users and require low latency or high bandwidth. By seamlessly extending your Kubernetes clusters to the edge with the Virtual Kubelet Provider for StackPath Edge Compute, you can improve the performance and reliability of your applications.
 
 ## Contributing
 

@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -115,16 +117,18 @@ func (p *StackpathProvider) deleteWorkload(ctx context.Context, podNamespace, po
 	return nil
 }
 
-func (p *StackpathProvider) getInstanceLogs(ctx context.Context, podNamespace, podName, containerName string, opts api.ContainerLogOpts) (*string, error) {
-
+func (p *StackpathProvider) getInstanceLogsReader(ctx context.Context, podNamespace, podName, containerName string, opts api.ContainerLogOpts) io.ReadCloser {
 	params := instance_logs.GetLogsParams{
+		Context:       ctx,
 		StackID:       p.apiConfig.StackID,
 		WorkloadID:    p.getWorkloadSlug(podNamespace, podName),
 		ContainerName: &containerName,
 		InstanceName:  p.getInstanceName(podNamespace, podName),
 		Follow:        &opts.Follow,
 		Previous:      &opts.Previous,
+		Timestamps:    &opts.Timestamps,
 	}
+
 	sinceTime := strfmt.DateTime(opts.SinceTime)
 	params.SinceTime = &sinceTime
 
@@ -136,12 +140,24 @@ func (p *StackpathProvider) getInstanceLogs(ctx context.Context, podNamespace, p
 		limitBytes := strconv.Itoa(opts.LimitBytes)
 		params.LimitBytes = &limitBytes
 	}
-
-	logs, err := p.stackpathClient.InstanceLogs.GetLogs(&params, nil)
-	if err != nil {
-		return nil, NewStackPathError(err)
+	if opts.Tail > 0 {
+		tailLines := strconv.Itoa(opts.Tail)
+		params.TailLines = &tailLines
 	}
-	return &logs.Payload.Bytes, nil
+
+	reader, writer := io.Pipe()
+
+	go func() {
+		_, err := p.stackpathClient.InstanceLogs.GetLogs(&params, nil, writer)
+		if err != nil && err != io.EOF {
+			if err == io.ErrUnexpectedEOF {
+				err = errors.New("the container logs retrieval process has been interrupted due to 60 seconds of inactivity")
+			}
+			writer.Write([]byte(err.Error()))
+		}
+		writer.Close()
+	}()
+	return reader
 }
 
 // getInstanceName returns the name of the first instance running in a workload.

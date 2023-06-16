@@ -1,18 +1,24 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	gomock "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen/model"
 	"github.com/google/uuid"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance_logs"
 	workloads "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
 	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
 	"github.com/stackpath/vk-stackpath-provider/internal/config"
@@ -347,15 +353,111 @@ func TestGetMetricsResource(t *testing.T) {
 }
 
 func TestGetContainerLogs(t *testing.T) {
-	// ctx := context.Background()
+	ctx := context.Background()
+	podName := "test-pod"
+	podNamespace := "test-ns"
+	containerName := "test-container"
+	now := time.Now()
 
-	// provider, err := createTestProvider(ctx, nil, nil, nil, nil)
-	// if err != nil {
-	// 	t.Fatal("failed to create the test provider", err)
-	// }
+	mockController := gomock.NewController(t)
+	defer mockController.Finish()
 
-	// _, err = provider.GetContainerLogs(ctx, "", "", "", api.ContainerLogOpts{})
-	// assert.Equal(t, err, nil)
+	lcs := mocks.NewInstanceLogsClientService(mockController)
+	stackPathClientMock := workload_client.EdgeCompute{InstanceLogs: lcs}
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, &stackPathClientMock)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	testCases := []struct {
+		description     string
+		initMockedCalls func()
+		expectedError   error
+		opts            api.ContainerLogOpts
+		expectedOutput  string
+	}{
+		{
+			description: "Unexpected EOF",
+			initMockedCalls: func() {
+				follow := false
+				previous := false
+				timestamps := false
+				params := instance_logs.GetLogsParams{
+					ContainerName: &containerName,
+					Follow:        &follow,
+					InstanceName:  "test-ns-test-pod-city-code-jfk-0",
+					Previous:      &previous,
+					SinceTime:     &strfmt.DateTime{},
+					Context:       ctx,
+					StackID:       provider.apiConfig.StackID,
+					Timestamps:    &timestamps,
+					WorkloadID:    "test-ns-test-pod",
+				}
+
+				lcs.EXPECT().GetLogs(&params, nil, gomock.Any()).Return(nil, io.ErrUnexpectedEOF).Times(1)
+			},
+			opts:           api.ContainerLogOpts{},
+			expectedOutput: "the container logs retrieval process has been interrupted due to 60 seconds of inactivity",
+		},
+		{
+			description: "Successfully read the logs",
+			initMockedCalls: func() {
+				follow := false
+				previous := true
+				timestamps := true
+				sinceSeconds := "10"
+				tail := "100"
+				limitBytes := "200"
+				sinceTime := strfmt.DateTime(now)
+
+				params := instance_logs.GetLogsParams{
+					ContainerName: &containerName,
+					Follow:        &follow,
+					InstanceName:  "test-ns-test-pod-city-code-jfk-0",
+					Previous:      &previous,
+					SinceTime:     &sinceTime,
+					Context:       ctx,
+					StackID:       provider.apiConfig.StackID,
+					Timestamps:    &timestamps,
+					SinceSeconds:  &sinceSeconds,
+					TailLines:     &tail,
+					LimitBytes:    &limitBytes,
+					WorkloadID:    "test-ns-test-pod",
+				}
+
+				var b bytes.Buffer
+				writer := io.Writer(&b)
+				ok := instance_logs.GetLogsOK{Payload: writer}
+				lcs.EXPECT().GetLogs(&params, nil, gomock.Any()).Return(&ok, nil).Times(1)
+			},
+			opts: api.ContainerLogOpts{
+				Tail:         100,
+				Follow:       false,
+				Timestamps:   true,
+				Previous:     true,
+				SinceSeconds: 10,
+				SinceTime:    now,
+				LimitBytes:   200,
+			},
+			expectedOutput: "",
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			c.initMockedCalls()
+			reader, err := provider.GetContainerLogs(ctx, podNamespace, podName, containerName, c.opts)
+			assert.NilError(t, err)
+
+			output, err := ioutil.ReadAll(reader)
+			if err != nil {
+				t.Fatal("Couldn't read the response", err)
+			}
+
+			assert.Equal(t, c.expectedOutput, string(output))
+		})
+	}
 }
 
 func TestGetStatsSummary(t *testing.T) {

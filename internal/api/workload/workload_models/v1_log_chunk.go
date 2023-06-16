@@ -7,6 +7,7 @@ package workload_models
 
 import (
 	"context"
+	"io"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -18,7 +19,8 @@ import (
 type V1LogChunk struct {
 
 	// Raw log contents
-	Bytes string `json:"bytes,omitempty"`
+	// Format: binary
+	Bytes io.ReadCloser `json:"bytes,omitempty"`
 }
 
 // Validate validates this v1 log chunk
