@@ -1,0 +1,49 @@
+name: Comment on the pull request
+on:
+  workflow_run:
+    workflows: ["Run code coverage"]
+    types:
+      - completed
+jobs:
+  pr_comment:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download comment artifact
+        uses: actions/github-script@v3.1.0
+        with:
+          script: |
+            var artifacts = await github.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{github.event.workflow_run.id }},
+            });
+            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "pr_comment"
+            })[0];
+            var download = await github.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{github.workspace}}/pr_comment.zip', Buffer.from(download.data));
+      - run: unzip pr_comment.zip
+      - shell: bash
+        run: |
+          COMMENT=`cat pr_comment.out`
+          echo "COMMENT=$COMMENT" >> "$GITHUB_ENV"
+          echo "ISSUE_NUMBER=$(echo $COMMENT | head -n 1)" >> "$GITHUB_ENV"
+      - name: Add PR comment
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: "${{ env.ISSUE_NUMBER }}",
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "${{ env.COMMENT }}"
+            })
