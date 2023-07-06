@@ -640,6 +640,54 @@ func createTestPod(podName, podNamespace string) *v1.Pod {
 					},
 				},
 			},
+			InitContainers: []v1.Container{
+				{
+					Name: "init",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          "http",
+							ContainerPort: 8080,
+						},
+					},
+					Resources: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							"cpu":    resource.MustParse("0.99"),
+							"memory": resource.MustParse("1.5G"),
+						},
+						Limits: v1.ResourceList{
+							"cpu":    resource.MustParse("3999m"),
+							"memory": resource.MustParse("8010M"),
+						},
+					},
+
+					LivenessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromString("http"),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromInt(8080),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+				},
+			},
 		},
 	}
 }

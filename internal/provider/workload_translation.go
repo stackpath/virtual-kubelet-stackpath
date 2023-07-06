@@ -3,6 +3,7 @@ package provider
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
@@ -63,13 +64,65 @@ func (p *StackpathProvider) getWorkloadSpecFrom(pod *v1.Pod) (*workload_models.V
 		return nil, err
 	}
 
+	initContainers, err := p.getWorkloadContainersFrom(pod.Spec.InitContainers)
+	if err != nil {
+		return nil, err
+	}
+
+	runtimeSettings := p.getWorkloadRuntimeSettingsFrom(pod.Spec)
+
 	spec := workload_models.V1WorkloadSpec{
 		Containers:           containers,
 		NetworkInterfaces:    networkInterfaces,
 		ImagePullCredentials: imagePullCredentials,
 		VolumeClaimTemplates: volumes,
+		InitContainers:       initContainers,
+		Runtime:              runtimeSettings,
 	}
 	return &spec, nil
+}
+
+func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *workload_models.V1WorkloadInstanceRuntimeSettings {
+
+	runtime := workload_models.V1WorkloadInstanceRuntimeSettings{}
+	settings := workload_models.V1WorkloadInstanceContainerRuntimeSettings{}
+	settingsExist := false
+
+	if spec.TerminationGracePeriodSeconds != nil {
+		settingsExist = true
+		settings.TerminationGracePeriodSeconds = strconv.FormatInt(int64(*spec.TerminationGracePeriodSeconds), 10)
+	}
+	for _, hostAlias := range spec.HostAliases {
+		settingsExist = true
+		ha := workload_models.V1HostAlias{IP: hostAlias.IP, Hostnames: hostAlias.Hostnames}
+		settings.HostAliases = append(settings.HostAliases, &ha)
+	}
+	if spec.DNSConfig != nil {
+		settingsExist = true
+		options := []*workload_models.V1DNSConfigOption{}
+		for _, option := range spec.DNSConfig.Options {
+			o := workload_models.V1DNSConfigOption{Name: option.Name}
+			if option.Value != nil {
+				o.Value = *option.Value
+			}
+			options = append(options, &o)
+		}
+		settings.DNSConfig = &workload_models.V1DNSConfig{
+			Nameservers: spec.DNSConfig.Nameservers,
+			Searches:    spec.DNSConfig.Searches,
+			Options:     options,
+		}
+	}
+	if spec.ShareProcessNamespace != nil {
+		settingsExist = true
+		settings.ShareProcessNamespace = *spec.ShareProcessNamespace
+	}
+
+	if settingsExist {
+		runtime.Containers = &settings
+	}
+
+	return &runtime
 }
 
 func (p *StackpathProvider) getVolumeClaimSpecFrom(spec *v1.CSIVolumeSource) (*workload_models.V1VolumeClaimSpec, error) {
