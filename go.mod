@@ -1,4 +1,4 @@
-module github.com/stackpath/vk-stackpath-provider
+module github.com/stackpath/virtual-kubelet-stackpath
 
 go 1.20
 

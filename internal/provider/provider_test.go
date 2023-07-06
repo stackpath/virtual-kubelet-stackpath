@@ -11,13 +11,13 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen/model"
 	"github.com/google/uuid"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
-	workloads "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
-	"github.com/stackpath/vk-stackpath-provider/internal/config"
-	mocks "github.com/stackpath/vk-stackpath-provider/internal/mocks"
-	"github.com/stackpath/vk-stackpath-provider/internal/sshtest"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/config"
+	mocks "github.com/stackpath/virtual-kubelet-stackpath/internal/mocks"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/sshtest"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"gotest.tools/assert"
@@ -42,8 +42,8 @@ func TestCreatePod(t *testing.T) {
 	defer mockController.Finish()
 	ctx := context.Background()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc}
+	wsc := mocks.NewWorkloadClientService(mockController)
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc}
 
 	provider, err := createTestProvider(ctx, mocks.NewMockConfigMapLister(mockController), mocks.NewMockSecretLister(mockController), mocks.NewMockPodLister(mockController), &stackPathClientMock)
 	if err != nil {
@@ -71,7 +71,7 @@ func TestCreatePod(t *testing.T) {
 			pod:         testPod,
 			initMockedCalls: func() {
 				w, _ := provider.getWorkloadFrom(testPod)
-				params := workloads.CreateWorkloadParams{
+				params := workload.CreateWorkloadParams{
 					Body:    &workload_models.V1CreateWorkloadRequest{Workload: w},
 					StackID: provider.apiConfig.StackID,
 					Context: ctx,
@@ -85,7 +85,7 @@ func TestCreatePod(t *testing.T) {
 			pod:         badPod,
 			initMockedCalls: func() {
 				w, _ := provider.getWorkloadFrom(testPod)
-				params := workloads.CreateWorkloadParams{
+				params := workload.CreateWorkloadParams{
 					Body:    &workload_models.V1CreateWorkloadRequest{Workload: w},
 					StackID: provider.apiConfig.StackID,
 					Context: ctx,
@@ -116,8 +116,8 @@ func TestDeletePod(t *testing.T) {
 	defer mockController.Finish()
 	ctx := context.Background()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc}
+	wsc := mocks.NewWorkloadClientService(mockController)
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc}
 	testPod := createTestPod(podName, podNamespace)
 
 	provider, err := createTestProvider(ctx, mocks.NewMockConfigMapLister(mockController), mocks.NewMockSecretLister(mockController), mocks.NewMockPodLister(mockController), &stackPathClientMock)
@@ -125,7 +125,7 @@ func TestDeletePod(t *testing.T) {
 		t.Fatal("failed to create the test provider", err)
 	}
 
-	params := workloads.DeleteWorkloadParams{
+	params := workload.DeleteWorkloadParams{
 		StackID:    provider.apiConfig.StackID,
 		WorkloadID: provider.getWorkloadSlug(podNamespace, podName),
 		Context:    ctx,
@@ -378,11 +378,11 @@ func TestGetPod(t *testing.T) {
 	defer mockController.Finish()
 	ctx := context.Background()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
+	wsc := mocks.NewWorkloadClientService(mockController)
 	isc := mocks.NewInstanceClientService(mockController)
 	activePodsLister := mocks.NewMockPodLister(mockController)
 	mockPodsNamespaceLister := mocks.NewMockPodNamespaceLister(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc, Instance: isc}
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc, Instance: isc}
 
 	pod := createTestPod(podName, podNamespace)
 	pod.Status.Phase = v1.PodPending
@@ -401,7 +401,7 @@ func TestGetPod(t *testing.T) {
 		{
 			description: "successfully gets a pod and updates its status accordingly",
 			initMockedCalls: func() {
-				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadOK{
+				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadOK{
 					Payload: &workload_models.V1GetWorkloadResponse{
 						Workload: &workload_models.V1Workload{
 							Name: podName,
@@ -442,7 +442,7 @@ func TestGetPod(t *testing.T) {
 		{
 			description: "fails to get a pod due to instance API failure",
 			initMockedCalls: func() {
-				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadOK{
+				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadOK{
 					Payload: &workload_models.V1GetWorkloadResponse{
 						Workload: &workload_models.V1Workload{
 							Name: podName,
@@ -465,7 +465,7 @@ func TestGetPod(t *testing.T) {
 		{
 			description: "fails to get a pod due to an error occurred while retrieving the pod form the indexer",
 			initMockedCalls: func() {
-				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadOK{
+				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadOK{
 					Payload: &workload_models.V1GetWorkloadResponse{
 						Workload: &workload_models.V1Workload{
 							Name: podName,

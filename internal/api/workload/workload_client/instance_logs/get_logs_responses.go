@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 )
 
 // GetLogsReader is a Reader for the GetLogs structure.
@@ -92,11 +92,6 @@ func (o *GetLogsOK) IsCode(code int) bool {
 	return code == 200
 }
 
-// Code gets the status code for the get logs o k response
-func (o *GetLogsOK) Code() int {
-	return 200
-}
-
 func (o *GetLogsOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/logs][%d] getLogsOK  %+v", 200, o.Payload)
 }
@@ -158,11 +153,6 @@ func (o *GetLogsUnauthorized) IsServerError() bool {
 // IsCode returns true when this get logs unauthorized response a status code equal to that given
 func (o *GetLogsUnauthorized) IsCode(code int) bool {
 	return code == 401
-}
-
-// Code gets the status code for the get logs unauthorized response
-func (o *GetLogsUnauthorized) Code() int {
-	return 401
 }
 
 func (o *GetLogsUnauthorized) Error() string {
@@ -228,11 +218,6 @@ func (o *GetLogsInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
-// Code gets the status code for the get logs internal server error response
-func (o *GetLogsInternalServerError) Code() int {
-	return 500
-}
-
 func (o *GetLogsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/logs][%d] getLogsInternalServerError  %+v", 500, o.Payload)
 }
@@ -275,6 +260,11 @@ type GetLogsDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
+// Code gets the status code for the get logs default response
+func (o *GetLogsDefault) Code() int {
+	return o._statusCode
+}
+
 // IsSuccess returns true when this get logs default response has a 2xx status code
 func (o *GetLogsDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -298,11 +288,6 @@ func (o *GetLogsDefault) IsServerError() bool {
 // IsCode returns true when this get logs default response a status code equal to that given
 func (o *GetLogsDefault) IsCode(code int) bool {
 	return o._statusCode == code
-}
-
-// Code gets the status code for the get logs default response
-func (o *GetLogsDefault) Code() int {
-	return o._statusCode
 }
 
 func (o *GetLogsDefault) Error() string {

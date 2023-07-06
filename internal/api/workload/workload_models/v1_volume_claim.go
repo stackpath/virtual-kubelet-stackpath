@@ -11,7 +11,6 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
-	"github.com/go-openapi/validate"
 )
 
 // V1VolumeClaim A claim for a volume
@@ -22,7 +21,6 @@ import (
 type V1VolumeClaim struct {
 
 	// A volume claim's unique identifier
-	// Read Only: true
 	ID string `json:"id,omitempty"`
 
 	// metadata
@@ -32,19 +30,17 @@ type V1VolumeClaim struct {
 	Name string `json:"name,omitempty"`
 
 	// phase
-	// Read Only: true
 	Phase *VolumeClaimVolumeClaimPhase `json:"phase,omitempty"`
 
 	// A volume claim's programmatic name
 	//
-	// Volume claim slugs are used to programmatically label a claim
+	// Volume claim slugs are used to programatically label a claim
 	Slug string `json:"slug,omitempty"`
 
 	// spec
 	Spec *V1VolumeClaimSpec `json:"spec,omitempty"`
 
 	// The ID of the stack that a volume claim belongs to
-	// Read Only: true
 	StackID string `json:"stackId,omitempty"`
 }
 
@@ -131,10 +127,6 @@ func (m *V1VolumeClaim) validateSpec(formats strfmt.Registry) error {
 func (m *V1VolumeClaim) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.contextValidateID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
 	if err := m.contextValidateMetadata(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -147,22 +139,9 @@ func (m *V1VolumeClaim) ContextValidate(ctx context.Context, formats strfmt.Regi
 		res = append(res, err)
 	}
 
-	if err := m.contextValidateStackID(ctx, formats); err != nil {
-		res = append(res, err)
-	}
-
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
-	return nil
-}
-
-func (m *V1VolumeClaim) contextValidateID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "id", "body", string(m.ID)); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -209,15 +188,6 @@ func (m *V1VolumeClaim) contextValidateSpec(ctx context.Context, formats strfmt.
 			}
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (m *V1VolumeClaim) contextValidateStackID(ctx context.Context, formats strfmt.Registry) error {
-
-	if err := validate.ReadOnly(ctx, "stackId", "body", string(m.StackID)); err != nil {
-		return err
 	}
 
 	return nil

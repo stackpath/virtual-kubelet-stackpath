@@ -16,31 +16,19 @@ import (
 
 // V1WrappedImagePullCredentials The credentials that should be used to pull the container image
 //
-// # The credentials that should be used to pull the container image
-//
 // swagger:model v1WrappedImagePullCredentials
-type V1WrappedImagePullCredentials []*V1ImagePullCredential
+type V1WrappedImagePullCredentials struct {
+
+	// Credentials that should be used to pull workload images
+	ImagePullCredentials []*V1ImagePullCredential `json:"imagePullCredentials"`
+}
 
 // Validate validates this v1 wrapped image pull credentials
-func (m V1WrappedImagePullCredentials) Validate(formats strfmt.Registry) error {
+func (m *V1WrappedImagePullCredentials) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	for i := 0; i < len(m); i++ {
-		if swag.IsZero(m[i]) { // not required
-			continue
-		}
-
-		if m[i] != nil {
-			if err := m[i].Validate(formats); err != nil {
-				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName(strconv.Itoa(i))
-				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName(strconv.Itoa(i))
-				}
-				return err
-			}
-		}
-
+	if err := m.validateImagePullCredentials(formats); err != nil {
+		res = append(res, err)
 	}
 
 	if len(res) > 0 {
@@ -49,18 +37,22 @@ func (m V1WrappedImagePullCredentials) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-// ContextValidate validate this v1 wrapped image pull credentials based on the context it is used
-func (m V1WrappedImagePullCredentials) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
-	var res []error
+func (m *V1WrappedImagePullCredentials) validateImagePullCredentials(formats strfmt.Registry) error {
+	if swag.IsZero(m.ImagePullCredentials) { // not required
+		return nil
+	}
 
-	for i := 0; i < len(m); i++ {
+	for i := 0; i < len(m.ImagePullCredentials); i++ {
+		if swag.IsZero(m.ImagePullCredentials[i]) { // not required
+			continue
+		}
 
-		if m[i] != nil {
-			if err := m[i].ContextValidate(ctx, formats); err != nil {
+		if m.ImagePullCredentials[i] != nil {
+			if err := m.ImagePullCredentials[i].Validate(formats); err != nil {
 				if ve, ok := err.(*errors.Validation); ok {
-					return ve.ValidateName(strconv.Itoa(i))
+					return ve.ValidateName("imagePullCredentials" + "." + strconv.Itoa(i))
 				} else if ce, ok := err.(*errors.CompositeError); ok {
-					return ce.ValidateName(strconv.Itoa(i))
+					return ce.ValidateName("imagePullCredentials" + "." + strconv.Itoa(i))
 				}
 				return err
 			}
@@ -68,8 +60,57 @@ func (m V1WrappedImagePullCredentials) ContextValidate(ctx context.Context, form
 
 	}
 
+	return nil
+}
+
+// ContextValidate validate this v1 wrapped image pull credentials based on the context it is used
+func (m *V1WrappedImagePullCredentials) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.contextValidateImagePullCredentials(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *V1WrappedImagePullCredentials) contextValidateImagePullCredentials(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.ImagePullCredentials); i++ {
+
+		if m.ImagePullCredentials[i] != nil {
+			if err := m.ImagePullCredentials[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("imagePullCredentials" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("imagePullCredentials" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *V1WrappedImagePullCredentials) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *V1WrappedImagePullCredentials) UnmarshalBinary(b []byte) error {
+	var res V1WrappedImagePullCredentials
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
 	return nil
 }

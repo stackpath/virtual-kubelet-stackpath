@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 	"github.com/virtual-kubelet/virtual-kubelet/errdefs"
 	v1 "k8s.io/api/core/v1"
 )
@@ -29,8 +29,8 @@ type dockerConfigJSON struct {
 	HTTPHeaders map[string]string `json:"HttpHeaders,omitempty"`
 }
 
-func (p *StackpathProvider) getImagePullCredentialsFrom(namespace string, k8sImagePullSecrets []v1.LocalObjectReference) ([]*workload_models.V1ImagePullCredential, error) {
-	imagePullCredentials := workload_models.V1WrappedImagePullCredentials{}
+func (p *StackpathProvider) getImagePullCredentialsFrom(namespace string, k8sImagePullSecrets []v1.LocalObjectReference) (*workload_models.V1WrappedImagePullCredentials, error) {
+	imagePullCredentials := workload_models.V1WrappedImagePullCredentials{ImagePullCredentials: []*workload_models.V1ImagePullCredential{}}
 	// if there are image pull credentials, fetch the secret and fill the details.
 	if len(k8sImagePullSecrets) != 0 {
 		for _, k8sImagePullCredential := range k8sImagePullSecrets {
@@ -42,10 +42,10 @@ func (p *StackpathProvider) getImagePullCredentialsFrom(namespace string, k8sIma
 				}
 				return nil, err
 			}
-			imagePullCredentials = append(imagePullCredentials, imagePullCredential...)
+			imagePullCredentials.ImagePullCredentials = append(imagePullCredentials.ImagePullCredentials, imagePullCredential...)
 		}
 	}
-	return imagePullCredentials, nil
+	return &imagePullCredentials, nil
 }
 
 func (p *StackpathProvider) getImagePullCredentialFrom(namespace string, k8sImagePullSecret v1.LocalObjectReference) ([]*workload_models.V1ImagePullCredential, error) {

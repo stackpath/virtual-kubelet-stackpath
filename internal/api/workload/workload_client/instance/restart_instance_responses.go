@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 )
 
 // RestartInstanceReader is a Reader for the RestartInstance structure.
@@ -91,11 +91,6 @@ func (o *RestartInstanceNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
-// Code gets the status code for the restart instance no content response
-func (o *RestartInstanceNoContent) Code() int {
-	return 204
-}
-
 func (o *RestartInstanceNoContent) Error() string {
 	return fmt.Sprintf("[POST /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/power/restart][%d] restartInstanceNoContent ", 204)
 }
@@ -146,11 +141,6 @@ func (o *RestartInstanceUnauthorized) IsServerError() bool {
 // IsCode returns true when this restart instance unauthorized response a status code equal to that given
 func (o *RestartInstanceUnauthorized) IsCode(code int) bool {
 	return code == 401
-}
-
-// Code gets the status code for the restart instance unauthorized response
-func (o *RestartInstanceUnauthorized) Code() int {
-	return 401
 }
 
 func (o *RestartInstanceUnauthorized) Error() string {
@@ -216,11 +206,6 @@ func (o *RestartInstanceInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
-// Code gets the status code for the restart instance internal server error response
-func (o *RestartInstanceInternalServerError) Code() int {
-	return 500
-}
-
 func (o *RestartInstanceInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/power/restart][%d] restartInstanceInternalServerError  %+v", 500, o.Payload)
 }
@@ -263,6 +248,11 @@ type RestartInstanceDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
+// Code gets the status code for the restart instance default response
+func (o *RestartInstanceDefault) Code() int {
+	return o._statusCode
+}
+
 // IsSuccess returns true when this restart instance default response has a 2xx status code
 func (o *RestartInstanceDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -286,11 +276,6 @@ func (o *RestartInstanceDefault) IsServerError() bool {
 // IsCode returns true when this restart instance default response a status code equal to that given
 func (o *RestartInstanceDefault) IsCode(code int) bool {
 	return o._statusCode == code
-}
-
-// Code gets the status code for the restart instance default response
-func (o *RestartInstanceDefault) Code() int {
-	return o._statusCode
 }
 
 func (o *RestartInstanceDefault) Error() string {

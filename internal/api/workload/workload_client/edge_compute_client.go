@@ -10,12 +10,11 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance_logs"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instances"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/metrics"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workload"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/image"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance_logs"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/metrics"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload"
 )
 
 // Default edge compute HTTP client.
@@ -60,12 +59,11 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *EdgeComput
 
 	cli := new(EdgeCompute)
 	cli.Transport = transport
+	cli.Image = image.New(transport, formats)
 	cli.Instance = instance.New(transport, formats)
 	cli.InstanceLogs = instance_logs.New(transport, formats)
-	cli.Instances = instances.New(transport, formats)
 	cli.Metrics = metrics.New(transport, formats)
 	cli.Workload = workload.New(transport, formats)
-	cli.Workloads = workloads.New(transport, formats)
 	return cli
 }
 
@@ -110,17 +108,15 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // EdgeCompute is a client for edge compute
 type EdgeCompute struct {
+	Image image.ClientService
+
 	Instance instance.ClientService
 
 	InstanceLogs instance_logs.ClientService
 
-	Instances instances.ClientService
-
 	Metrics metrics.ClientService
 
 	Workload workload.ClientService
-
-	Workloads workloads.ClientService
 
 	Transport runtime.ClientTransport
 }
@@ -128,10 +124,9 @@ type EdgeCompute struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *EdgeCompute) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
+	c.Image.SetTransport(transport)
 	c.Instance.SetTransport(transport)
 	c.InstanceLogs.SetTransport(transport)
-	c.Instances.SetTransport(transport)
 	c.Metrics.SetTransport(transport)
 	c.Workload.SetTransport(transport)
-	c.Workloads.SetTransport(transport)
 }

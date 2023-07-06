@@ -23,10 +23,16 @@ type V1WorkloadSpec struct {
 	Containers V1ContainerSpecMapEntry `json:"containers,omitempty"`
 
 	// image pull credentials
-	ImagePullCredentials V1WrappedImagePullCredentials `json:"imagePullCredentials,omitempty"`
+	ImagePullCredentials *V1WrappedImagePullCredentials `json:"imagePullCredentials,omitempty"`
+
+	// init containers
+	InitContainers V1ContainerSpecMapEntry `json:"initContainers,omitempty"`
 
 	// Network interfaces to bind to the workload's instances
 	NetworkInterfaces []*V1NetworkInterface `json:"networkInterfaces"`
+
+	// runtime
+	Runtime *V1WorkloadInstanceRuntimeSettings `json:"runtime,omitempty"`
 
 	// virtual machines
 	VirtualMachines V1VirtualMachineSpecMapEntry `json:"virtualMachines,omitempty"`
@@ -49,7 +55,15 @@ func (m *V1WorkloadSpec) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateInitContainers(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateNetworkInterfaces(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateRuntime(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -91,13 +105,34 @@ func (m *V1WorkloadSpec) validateImagePullCredentials(formats strfmt.Registry) e
 		return nil
 	}
 
-	if err := m.ImagePullCredentials.Validate(formats); err != nil {
-		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("imagePullCredentials")
-		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("imagePullCredentials")
+	if m.ImagePullCredentials != nil {
+		if err := m.ImagePullCredentials.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("imagePullCredentials")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("imagePullCredentials")
+			}
+			return err
 		}
-		return err
+	}
+
+	return nil
+}
+
+func (m *V1WorkloadSpec) validateInitContainers(formats strfmt.Registry) error {
+	if swag.IsZero(m.InitContainers) { // not required
+		return nil
+	}
+
+	if m.InitContainers != nil {
+		if err := m.InitContainers.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("initContainers")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("initContainers")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -124,6 +159,25 @@ func (m *V1WorkloadSpec) validateNetworkInterfaces(formats strfmt.Registry) erro
 			}
 		}
 
+	}
+
+	return nil
+}
+
+func (m *V1WorkloadSpec) validateRuntime(formats strfmt.Registry) error {
+	if swag.IsZero(m.Runtime) { // not required
+		return nil
+	}
+
+	if m.Runtime != nil {
+		if err := m.Runtime.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("runtime")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("runtime")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -186,7 +240,15 @@ func (m *V1WorkloadSpec) ContextValidate(ctx context.Context, formats strfmt.Reg
 		res = append(res, err)
 	}
 
+	if err := m.contextValidateInitContainers(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateNetworkInterfaces(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateRuntime(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -220,11 +282,27 @@ func (m *V1WorkloadSpec) contextValidateContainers(ctx context.Context, formats 
 
 func (m *V1WorkloadSpec) contextValidateImagePullCredentials(ctx context.Context, formats strfmt.Registry) error {
 
-	if err := m.ImagePullCredentials.ContextValidate(ctx, formats); err != nil {
+	if m.ImagePullCredentials != nil {
+		if err := m.ImagePullCredentials.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("imagePullCredentials")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("imagePullCredentials")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1WorkloadSpec) contextValidateInitContainers(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := m.InitContainers.ContextValidate(ctx, formats); err != nil {
 		if ve, ok := err.(*errors.Validation); ok {
-			return ve.ValidateName("imagePullCredentials")
+			return ve.ValidateName("initContainers")
 		} else if ce, ok := err.(*errors.CompositeError); ok {
-			return ce.ValidateName("imagePullCredentials")
+			return ce.ValidateName("initContainers")
 		}
 		return err
 	}
@@ -247,6 +325,22 @@ func (m *V1WorkloadSpec) contextValidateNetworkInterfaces(ctx context.Context, f
 			}
 		}
 
+	}
+
+	return nil
+}
+
+func (m *V1WorkloadSpec) contextValidateRuntime(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Runtime != nil {
+		if err := m.Runtime.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("runtime")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("runtime")
+			}
+			return err
+		}
 	}
 
 	return nil

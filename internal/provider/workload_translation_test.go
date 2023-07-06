@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
-	"github.com/stackpath/vk-stackpath-provider/internal/mocks"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/mocks"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -1100,7 +1100,7 @@ func TestGetWorkloadFrom(t *testing.T) {
 							VolumeMounts: []*workload_models.V1InstanceVolumeMount{},
 						},
 					},
-					ImagePullCredentials: workload_models.V1WrappedImagePullCredentials{},
+					ImagePullCredentials: &workload_models.V1WrappedImagePullCredentials{ImagePullCredentials: []*workload_models.V1ImagePullCredential{}},
 					NetworkInterfaces: []*workload_models.V1NetworkInterface{
 						{
 							EnableOneToOneNat: true,
