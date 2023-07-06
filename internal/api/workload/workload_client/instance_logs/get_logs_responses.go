@@ -18,13 +18,14 @@ import (
 // GetLogsReader is a Reader for the GetLogs structure.
 type GetLogsReader struct {
 	formats strfmt.Registry
+	writer  io.Writer
 }
 
 // ReadResponse reads a server response into the received o.
 func (o *GetLogsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 	case 200:
-		result := NewGetLogsOK()
+		result := NewGetLogsOK(o.writer)
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
@@ -54,8 +55,11 @@ func (o *GetLogsReader) ReadResponse(response runtime.ClientResponse, consumer r
 }
 
 // NewGetLogsOK creates a GetLogsOK with default headers values
-func NewGetLogsOK() *GetLogsOK {
-	return &GetLogsOK{}
+func NewGetLogsOK(writer io.Writer) *GetLogsOK {
+	return &GetLogsOK{
+
+		Payload: writer,
+	}
 }
 
 /*
@@ -64,7 +68,7 @@ GetLogsOK describes a response with status code 200, with default header values.
 (streaming responses)
 */
 type GetLogsOK struct {
-	Payload *workload_models.V1LogChunk
+	Payload io.Writer
 }
 
 // IsSuccess returns true when this get logs o k response has a 2xx status code
@@ -92,6 +96,11 @@ func (o *GetLogsOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get logs o k response
+func (o *GetLogsOK) Code() int {
+	return 200
+}
+
 func (o *GetLogsOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/logs][%d] getLogsOK  %+v", 200, o.Payload)
 }
@@ -100,13 +109,11 @@ func (o *GetLogsOK) String() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/logs][%d] getLogsOK  %+v", 200, o.Payload)
 }
 
-func (o *GetLogsOK) GetPayload() *workload_models.V1LogChunk {
+func (o *GetLogsOK) GetPayload() io.Writer {
 	return o.Payload
 }
 
 func (o *GetLogsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
-
-	o.Payload = new(workload_models.V1LogChunk)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
@@ -153,6 +160,11 @@ func (o *GetLogsUnauthorized) IsServerError() bool {
 // IsCode returns true when this get logs unauthorized response a status code equal to that given
 func (o *GetLogsUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get logs unauthorized response
+func (o *GetLogsUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetLogsUnauthorized) Error() string {
@@ -218,6 +230,11 @@ func (o *GetLogsInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get logs internal server error response
+func (o *GetLogsInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetLogsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/logs][%d] getLogsInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +277,6 @@ type GetLogsDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get logs default response
-func (o *GetLogsDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get logs default response has a 2xx status code
 func (o *GetLogsDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +300,11 @@ func (o *GetLogsDefault) IsServerError() bool {
 // IsCode returns true when this get logs default response a status code equal to that given
 func (o *GetLogsDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get logs default response
+func (o *GetLogsDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetLogsDefault) Error() string {

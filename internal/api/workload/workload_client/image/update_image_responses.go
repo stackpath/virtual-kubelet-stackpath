@@ -92,6 +92,11 @@ func (o *UpdateImageOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the update image o k response
+func (o *UpdateImageOK) Code() int {
+	return 200
+}
+
 func (o *UpdateImageOK) Error() string {
 	return fmt.Sprintf("[PATCH /workload/v1/stacks/{image.stack_id}/images/{image.family}/{image.tag}][%d] updateImageOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *UpdateImageUnauthorized) IsServerError() bool {
 // IsCode returns true when this update image unauthorized response a status code equal to that given
 func (o *UpdateImageUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the update image unauthorized response
+func (o *UpdateImageUnauthorized) Code() int {
+	return 401
 }
 
 func (o *UpdateImageUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *UpdateImageInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the update image internal server error response
+func (o *UpdateImageInternalServerError) Code() int {
+	return 500
+}
+
 func (o *UpdateImageInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /workload/v1/stacks/{image.stack_id}/images/{image.family}/{image.tag}][%d] updateImageInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type UpdateImageDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the update image default response
-func (o *UpdateImageDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this update image default response has a 2xx status code
 func (o *UpdateImageDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *UpdateImageDefault) IsServerError() bool {
 // IsCode returns true when this update image default response a status code equal to that given
 func (o *UpdateImageDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the update image default response
+func (o *UpdateImageDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *UpdateImageDefault) Error() string {

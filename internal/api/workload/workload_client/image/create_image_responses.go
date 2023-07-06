@@ -92,6 +92,11 @@ func (o *CreateImageOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the create image o k response
+func (o *CreateImageOK) Code() int {
+	return 200
+}
+
 func (o *CreateImageOK) Error() string {
 	return fmt.Sprintf("[POST /workload/v1/stacks/{image.stack_id}/images/{image.family}/{image.tag}][%d] createImageOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *CreateImageUnauthorized) IsServerError() bool {
 // IsCode returns true when this create image unauthorized response a status code equal to that given
 func (o *CreateImageUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the create image unauthorized response
+func (o *CreateImageUnauthorized) Code() int {
+	return 401
 }
 
 func (o *CreateImageUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *CreateImageInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the create image internal server error response
+func (o *CreateImageInternalServerError) Code() int {
+	return 500
+}
+
 func (o *CreateImageInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /workload/v1/stacks/{image.stack_id}/images/{image.family}/{image.tag}][%d] createImageInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type CreateImageDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the create image default response
-func (o *CreateImageDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this create image default response has a 2xx status code
 func (o *CreateImageDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *CreateImageDefault) IsServerError() bool {
 // IsCode returns true when this create image default response a status code equal to that given
 func (o *CreateImageDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the create image default response
+func (o *CreateImageDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *CreateImageDefault) Error() string {

@@ -92,6 +92,11 @@ func (o *GetWorkloadInstanceInitialPasswordOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get workload instance initial password o k response
+func (o *GetWorkloadInstanceInitialPasswordOK) Code() int {
+	return 200
+}
+
 func (o *GetWorkloadInstanceInitialPasswordOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/passwords/initial][%d] getWorkloadInstanceInitialPasswordOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetWorkloadInstanceInitialPasswordUnauthorized) IsServerError() bool {
 // IsCode returns true when this get workload instance initial password unauthorized response a status code equal to that given
 func (o *GetWorkloadInstanceInitialPasswordUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get workload instance initial password unauthorized response
+func (o *GetWorkloadInstanceInitialPasswordUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetWorkloadInstanceInitialPasswordUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetWorkloadInstanceInitialPasswordInternalServerError) IsCode(code int)
 	return code == 500
 }
 
+// Code gets the status code for the get workload instance initial password internal server error response
+func (o *GetWorkloadInstanceInitialPasswordInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetWorkloadInstanceInitialPasswordInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/passwords/initial][%d] getWorkloadInstanceInitialPasswordInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetWorkloadInstanceInitialPasswordDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get workload instance initial password default response
-func (o *GetWorkloadInstanceInitialPasswordDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get workload instance initial password default response has a 2xx status code
 func (o *GetWorkloadInstanceInitialPasswordDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetWorkloadInstanceInitialPasswordDefault) IsServerError() bool {
 // IsCode returns true when this get workload instance initial password default response a status code equal to that given
 func (o *GetWorkloadInstanceInitialPasswordDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get workload instance initial password default response
+func (o *GetWorkloadInstanceInitialPasswordDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetWorkloadInstanceInitialPasswordDefault) Error() string {

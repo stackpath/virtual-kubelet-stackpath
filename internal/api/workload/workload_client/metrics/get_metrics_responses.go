@@ -92,6 +92,11 @@ func (o *GetMetricsOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get metrics o k response
+func (o *GetMetricsOK) Code() int {
+	return 200
+}
+
 func (o *GetMetricsOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/metrics][%d] getMetricsOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetMetricsUnauthorized) IsServerError() bool {
 // IsCode returns true when this get metrics unauthorized response a status code equal to that given
 func (o *GetMetricsUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get metrics unauthorized response
+func (o *GetMetricsUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetMetricsUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetMetricsInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get metrics internal server error response
+func (o *GetMetricsInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetMetricsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/metrics][%d] getMetricsInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetMetricsDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get metrics default response
-func (o *GetMetricsDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get metrics default response has a 2xx status code
 func (o *GetMetricsDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetMetricsDefault) IsServerError() bool {
 // IsCode returns true when this get metrics default response a status code equal to that given
 func (o *GetMetricsDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get metrics default response
+func (o *GetMetricsDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetMetricsDefault) Error() string {

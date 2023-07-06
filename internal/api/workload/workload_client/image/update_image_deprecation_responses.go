@@ -92,6 +92,11 @@ func (o *UpdateImageDeprecationOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the update image deprecation o k response
+func (o *UpdateImageDeprecationOK) Code() int {
+	return 200
+}
+
 func (o *UpdateImageDeprecationOK) Error() string {
 	return fmt.Sprintf("[PUT /workload/v1/stacks/{stack_id}/images/{image_family}/{image_tag}/deprecation][%d] updateImageDeprecationOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *UpdateImageDeprecationUnauthorized) IsServerError() bool {
 // IsCode returns true when this update image deprecation unauthorized response a status code equal to that given
 func (o *UpdateImageDeprecationUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the update image deprecation unauthorized response
+func (o *UpdateImageDeprecationUnauthorized) Code() int {
+	return 401
 }
 
 func (o *UpdateImageDeprecationUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *UpdateImageDeprecationInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the update image deprecation internal server error response
+func (o *UpdateImageDeprecationInternalServerError) Code() int {
+	return 500
+}
+
 func (o *UpdateImageDeprecationInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /workload/v1/stacks/{stack_id}/images/{image_family}/{image_tag}/deprecation][%d] updateImageDeprecationInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type UpdateImageDeprecationDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the update image deprecation default response
-func (o *UpdateImageDeprecationDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this update image deprecation default response has a 2xx status code
 func (o *UpdateImageDeprecationDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *UpdateImageDeprecationDefault) IsServerError() bool {
 // IsCode returns true when this update image deprecation default response a status code equal to that given
 func (o *UpdateImageDeprecationDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the update image deprecation default response
+func (o *UpdateImageDeprecationDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *UpdateImageDeprecationDefault) Error() string {

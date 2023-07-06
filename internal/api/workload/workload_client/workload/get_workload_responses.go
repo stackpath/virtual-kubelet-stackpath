@@ -92,6 +92,11 @@ func (o *GetWorkloadOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get workload o k response
+func (o *GetWorkloadOK) Code() int {
+	return 200
+}
+
 func (o *GetWorkloadOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}][%d] getWorkloadOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetWorkloadUnauthorized) IsServerError() bool {
 // IsCode returns true when this get workload unauthorized response a status code equal to that given
 func (o *GetWorkloadUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get workload unauthorized response
+func (o *GetWorkloadUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetWorkloadUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetWorkloadInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get workload internal server error response
+func (o *GetWorkloadInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetWorkloadInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}][%d] getWorkloadInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetWorkloadDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get workload default response
-func (o *GetWorkloadDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get workload default response has a 2xx status code
 func (o *GetWorkloadDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetWorkloadDefault) IsServerError() bool {
 // IsCode returns true when this get workload default response a status code equal to that given
 func (o *GetWorkloadDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get workload default response
+func (o *GetWorkloadDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetWorkloadDefault) Error() string {

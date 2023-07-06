@@ -92,6 +92,11 @@ func (o *GetImagesOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get images o k response
+func (o *GetImagesOK) Code() int {
+	return 200
+}
+
 func (o *GetImagesOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/images][%d] getImagesOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetImagesUnauthorized) IsServerError() bool {
 // IsCode returns true when this get images unauthorized response a status code equal to that given
 func (o *GetImagesUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get images unauthorized response
+func (o *GetImagesUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetImagesUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetImagesInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get images internal server error response
+func (o *GetImagesInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetImagesInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/images][%d] getImagesInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetImagesDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get images default response
-func (o *GetImagesDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get images default response has a 2xx status code
 func (o *GetImagesDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetImagesDefault) IsServerError() bool {
 // IsCode returns true when this get images default response a status code equal to that given
 func (o *GetImagesDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get images default response
+func (o *GetImagesDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetImagesDefault) Error() string {

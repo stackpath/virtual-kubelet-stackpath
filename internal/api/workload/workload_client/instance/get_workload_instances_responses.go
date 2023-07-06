@@ -92,6 +92,11 @@ func (o *GetWorkloadInstancesOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get workload instances o k response
+func (o *GetWorkloadInstancesOK) Code() int {
+	return 200
+}
+
 func (o *GetWorkloadInstancesOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances][%d] getWorkloadInstancesOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetWorkloadInstancesUnauthorized) IsServerError() bool {
 // IsCode returns true when this get workload instances unauthorized response a status code equal to that given
 func (o *GetWorkloadInstancesUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get workload instances unauthorized response
+func (o *GetWorkloadInstancesUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetWorkloadInstancesUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetWorkloadInstancesInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get workload instances internal server error response
+func (o *GetWorkloadInstancesInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetWorkloadInstancesInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances][%d] getWorkloadInstancesInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetWorkloadInstancesDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get workload instances default response
-func (o *GetWorkloadInstancesDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get workload instances default response has a 2xx status code
 func (o *GetWorkloadInstancesDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetWorkloadInstancesDefault) IsServerError() bool {
 // IsCode returns true when this get workload instances default response a status code equal to that given
 func (o *GetWorkloadInstancesDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get workload instances default response
+func (o *GetWorkloadInstancesDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetWorkloadInstancesDefault) Error() string {

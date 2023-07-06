@@ -92,6 +92,11 @@ func (o *GetImagesForFamilyOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get images for family o k response
+func (o *GetImagesForFamilyOK) Code() int {
+	return 200
+}
+
 func (o *GetImagesForFamilyOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/images/{image_family}][%d] getImagesForFamilyOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetImagesForFamilyUnauthorized) IsServerError() bool {
 // IsCode returns true when this get images for family unauthorized response a status code equal to that given
 func (o *GetImagesForFamilyUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get images for family unauthorized response
+func (o *GetImagesForFamilyUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetImagesForFamilyUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetImagesForFamilyInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get images for family internal server error response
+func (o *GetImagesForFamilyInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetImagesForFamilyInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/images/{image_family}][%d] getImagesForFamilyInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetImagesForFamilyDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get images for family default response
-func (o *GetImagesForFamilyDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get images for family default response has a 2xx status code
 func (o *GetImagesForFamilyDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetImagesForFamilyDefault) IsServerError() bool {
 // IsCode returns true when this get images for family default response a status code equal to that given
 func (o *GetImagesForFamilyDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get images for family default response
+func (o *GetImagesForFamilyDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetImagesForFamilyDefault) Error() string {

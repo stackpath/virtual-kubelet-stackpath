@@ -92,6 +92,11 @@ func (o *UpdateWorkloadOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the update workload o k response
+func (o *UpdateWorkloadOK) Code() int {
+	return 200
+}
+
 func (o *UpdateWorkloadOK) Error() string {
 	return fmt.Sprintf("[PATCH /workload/v1/stacks/{stack_id}/workloads/{workload_id}][%d] updateWorkloadOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *UpdateWorkloadUnauthorized) IsServerError() bool {
 // IsCode returns true when this update workload unauthorized response a status code equal to that given
 func (o *UpdateWorkloadUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the update workload unauthorized response
+func (o *UpdateWorkloadUnauthorized) Code() int {
+	return 401
 }
 
 func (o *UpdateWorkloadUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *UpdateWorkloadInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the update workload internal server error response
+func (o *UpdateWorkloadInternalServerError) Code() int {
+	return 500
+}
+
 func (o *UpdateWorkloadInternalServerError) Error() string {
 	return fmt.Sprintf("[PATCH /workload/v1/stacks/{stack_id}/workloads/{workload_id}][%d] updateWorkloadInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type UpdateWorkloadDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the update workload default response
-func (o *UpdateWorkloadDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this update workload default response has a 2xx status code
 func (o *UpdateWorkloadDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *UpdateWorkloadDefault) IsServerError() bool {
 // IsCode returns true when this update workload default response a status code equal to that given
 func (o *UpdateWorkloadDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the update workload default response
+func (o *UpdateWorkloadDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *UpdateWorkloadDefault) Error() string {

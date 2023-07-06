@@ -92,6 +92,11 @@ func (o *CreateWorkloadOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the create workload o k response
+func (o *CreateWorkloadOK) Code() int {
+	return 200
+}
+
 func (o *CreateWorkloadOK) Error() string {
 	return fmt.Sprintf("[POST /workload/v1/stacks/{stack_id}/workloads][%d] createWorkloadOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *CreateWorkloadUnauthorized) IsServerError() bool {
 // IsCode returns true when this create workload unauthorized response a status code equal to that given
 func (o *CreateWorkloadUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the create workload unauthorized response
+func (o *CreateWorkloadUnauthorized) Code() int {
+	return 401
 }
 
 func (o *CreateWorkloadUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *CreateWorkloadInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the create workload internal server error response
+func (o *CreateWorkloadInternalServerError) Code() int {
+	return 500
+}
+
 func (o *CreateWorkloadInternalServerError) Error() string {
 	return fmt.Sprintf("[POST /workload/v1/stacks/{stack_id}/workloads][%d] createWorkloadInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type CreateWorkloadDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the create workload default response
-func (o *CreateWorkloadDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this create workload default response has a 2xx status code
 func (o *CreateWorkloadDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *CreateWorkloadDefault) IsServerError() bool {
 // IsCode returns true when this create workload default response a status code equal to that given
 func (o *CreateWorkloadDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the create workload default response
+func (o *CreateWorkloadDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *CreateWorkloadDefault) Error() string {

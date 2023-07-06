@@ -92,6 +92,11 @@ func (o *GetLocationsOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get locations o k response
+func (o *GetLocationsOK) Code() int {
+	return 200
+}
+
 func (o *GetLocationsOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/locations][%d] getLocationsOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetLocationsUnauthorized) IsServerError() bool {
 // IsCode returns true when this get locations unauthorized response a status code equal to that given
 func (o *GetLocationsUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get locations unauthorized response
+func (o *GetLocationsUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetLocationsUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetLocationsInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get locations internal server error response
+func (o *GetLocationsInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetLocationsInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/locations][%d] getLocationsInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetLocationsDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get locations default response
-func (o *GetLocationsDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get locations default response has a 2xx status code
 func (o *GetLocationsDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetLocationsDefault) IsServerError() bool {
 // IsCode returns true when this get locations default response a status code equal to that given
 func (o *GetLocationsDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get locations default response
+func (o *GetLocationsDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetLocationsDefault) Error() string {

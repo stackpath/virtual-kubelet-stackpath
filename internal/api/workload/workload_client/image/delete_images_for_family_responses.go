@@ -91,6 +91,11 @@ func (o *DeleteImagesForFamilyNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete images for family no content response
+func (o *DeleteImagesForFamilyNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteImagesForFamilyNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /workload/v1/stacks/{stack_id}/images/{image_family}][%d] deleteImagesForFamilyNoContent ", 204)
 }
@@ -141,6 +146,11 @@ func (o *DeleteImagesForFamilyUnauthorized) IsServerError() bool {
 // IsCode returns true when this delete images for family unauthorized response a status code equal to that given
 func (o *DeleteImagesForFamilyUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the delete images for family unauthorized response
+func (o *DeleteImagesForFamilyUnauthorized) Code() int {
+	return 401
 }
 
 func (o *DeleteImagesForFamilyUnauthorized) Error() string {
@@ -206,6 +216,11 @@ func (o *DeleteImagesForFamilyInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the delete images for family internal server error response
+func (o *DeleteImagesForFamilyInternalServerError) Code() int {
+	return 500
+}
+
 func (o *DeleteImagesForFamilyInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /workload/v1/stacks/{stack_id}/images/{image_family}][%d] deleteImagesForFamilyInternalServerError  %+v", 500, o.Payload)
 }
@@ -248,11 +263,6 @@ type DeleteImagesForFamilyDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the delete images for family default response
-func (o *DeleteImagesForFamilyDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this delete images for family default response has a 2xx status code
 func (o *DeleteImagesForFamilyDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -276,6 +286,11 @@ func (o *DeleteImagesForFamilyDefault) IsServerError() bool {
 // IsCode returns true when this delete images for family default response a status code equal to that given
 func (o *DeleteImagesForFamilyDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the delete images for family default response
+func (o *DeleteImagesForFamilyDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *DeleteImagesForFamilyDefault) Error() string {

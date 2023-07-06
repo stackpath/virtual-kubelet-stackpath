@@ -92,6 +92,11 @@ func (o *GetImageOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the get image o k response
+func (o *GetImageOK) Code() int {
+	return 200
+}
+
 func (o *GetImageOK) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/images/{image_family}/{image_tag}][%d] getImageOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *GetImageUnauthorized) IsServerError() bool {
 // IsCode returns true when this get image unauthorized response a status code equal to that given
 func (o *GetImageUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the get image unauthorized response
+func (o *GetImageUnauthorized) Code() int {
+	return 401
 }
 
 func (o *GetImageUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *GetImageInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the get image internal server error response
+func (o *GetImageInternalServerError) Code() int {
+	return 500
+}
+
 func (o *GetImageInternalServerError) Error() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/images/{image_family}/{image_tag}][%d] getImageInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type GetImageDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the get image default response
-func (o *GetImageDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this get image default response has a 2xx status code
 func (o *GetImageDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *GetImageDefault) IsServerError() bool {
 // IsCode returns true when this get image default response a status code equal to that given
 func (o *GetImageDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the get image default response
+func (o *GetImageDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *GetImageDefault) Error() string {

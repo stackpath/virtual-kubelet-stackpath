@@ -91,6 +91,11 @@ func (o *DeleteWorkloadNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete workload no content response
+func (o *DeleteWorkloadNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteWorkloadNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /workload/v1/stacks/{stack_id}/workloads/{workload_id}][%d] deleteWorkloadNoContent ", 204)
 }
@@ -141,6 +146,11 @@ func (o *DeleteWorkloadUnauthorized) IsServerError() bool {
 // IsCode returns true when this delete workload unauthorized response a status code equal to that given
 func (o *DeleteWorkloadUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the delete workload unauthorized response
+func (o *DeleteWorkloadUnauthorized) Code() int {
+	return 401
 }
 
 func (o *DeleteWorkloadUnauthorized) Error() string {
@@ -206,6 +216,11 @@ func (o *DeleteWorkloadInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the delete workload internal server error response
+func (o *DeleteWorkloadInternalServerError) Code() int {
+	return 500
+}
+
 func (o *DeleteWorkloadInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /workload/v1/stacks/{stack_id}/workloads/{workload_id}][%d] deleteWorkloadInternalServerError  %+v", 500, o.Payload)
 }
@@ -248,11 +263,6 @@ type DeleteWorkloadDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the delete workload default response
-func (o *DeleteWorkloadDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this delete workload default response has a 2xx status code
 func (o *DeleteWorkloadDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -276,6 +286,11 @@ func (o *DeleteWorkloadDefault) IsServerError() bool {
 // IsCode returns true when this delete workload default response a status code equal to that given
 func (o *DeleteWorkloadDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the delete workload default response
+func (o *DeleteWorkloadDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *DeleteWorkloadDefault) Error() string {

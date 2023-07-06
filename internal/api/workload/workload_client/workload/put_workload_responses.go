@@ -92,6 +92,11 @@ func (o *PutWorkloadOK) IsCode(code int) bool {
 	return code == 200
 }
 
+// Code gets the status code for the put workload o k response
+func (o *PutWorkloadOK) Code() int {
+	return 200
+}
+
 func (o *PutWorkloadOK) Error() string {
 	return fmt.Sprintf("[PUT /workload/v1/stacks/{workload.stack_id}/workloads/{workload.id}][%d] putWorkloadOK  %+v", 200, o.Payload)
 }
@@ -153,6 +158,11 @@ func (o *PutWorkloadUnauthorized) IsServerError() bool {
 // IsCode returns true when this put workload unauthorized response a status code equal to that given
 func (o *PutWorkloadUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the put workload unauthorized response
+func (o *PutWorkloadUnauthorized) Code() int {
+	return 401
 }
 
 func (o *PutWorkloadUnauthorized) Error() string {
@@ -218,6 +228,11 @@ func (o *PutWorkloadInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the put workload internal server error response
+func (o *PutWorkloadInternalServerError) Code() int {
+	return 500
+}
+
 func (o *PutWorkloadInternalServerError) Error() string {
 	return fmt.Sprintf("[PUT /workload/v1/stacks/{workload.stack_id}/workloads/{workload.id}][%d] putWorkloadInternalServerError  %+v", 500, o.Payload)
 }
@@ -260,11 +275,6 @@ type PutWorkloadDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the put workload default response
-func (o *PutWorkloadDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this put workload default response has a 2xx status code
 func (o *PutWorkloadDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -288,6 +298,11 @@ func (o *PutWorkloadDefault) IsServerError() bool {
 // IsCode returns true when this put workload default response a status code equal to that given
 func (o *PutWorkloadDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the put workload default response
+func (o *PutWorkloadDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *PutWorkloadDefault) Error() string {

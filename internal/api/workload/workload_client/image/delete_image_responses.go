@@ -91,6 +91,11 @@ func (o *DeleteImageNoContent) IsCode(code int) bool {
 	return code == 204
 }
 
+// Code gets the status code for the delete image no content response
+func (o *DeleteImageNoContent) Code() int {
+	return 204
+}
+
 func (o *DeleteImageNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /workload/v1/stacks/{stack_id}/images/{image_family}/{image_tag}][%d] deleteImageNoContent ", 204)
 }
@@ -141,6 +146,11 @@ func (o *DeleteImageUnauthorized) IsServerError() bool {
 // IsCode returns true when this delete image unauthorized response a status code equal to that given
 func (o *DeleteImageUnauthorized) IsCode(code int) bool {
 	return code == 401
+}
+
+// Code gets the status code for the delete image unauthorized response
+func (o *DeleteImageUnauthorized) Code() int {
+	return 401
 }
 
 func (o *DeleteImageUnauthorized) Error() string {
@@ -206,6 +216,11 @@ func (o *DeleteImageInternalServerError) IsCode(code int) bool {
 	return code == 500
 }
 
+// Code gets the status code for the delete image internal server error response
+func (o *DeleteImageInternalServerError) Code() int {
+	return 500
+}
+
 func (o *DeleteImageInternalServerError) Error() string {
 	return fmt.Sprintf("[DELETE /workload/v1/stacks/{stack_id}/images/{image_family}/{image_tag}][%d] deleteImageInternalServerError  %+v", 500, o.Payload)
 }
@@ -248,11 +263,6 @@ type DeleteImageDefault struct {
 	Payload *workload_models.StackpathapiStatus
 }
 
-// Code gets the status code for the delete image default response
-func (o *DeleteImageDefault) Code() int {
-	return o._statusCode
-}
-
 // IsSuccess returns true when this delete image default response has a 2xx status code
 func (o *DeleteImageDefault) IsSuccess() bool {
 	return o._statusCode/100 == 2
@@ -276,6 +286,11 @@ func (o *DeleteImageDefault) IsServerError() bool {
 // IsCode returns true when this delete image default response a status code equal to that given
 func (o *DeleteImageDefault) IsCode(code int) bool {
 	return o._statusCode == code
+}
+
+// Code gets the status code for the delete image default response
+func (o *DeleteImageDefault) Code() int {
+	return o._statusCode
 }
 
 func (o *DeleteImageDefault) Error() string {
