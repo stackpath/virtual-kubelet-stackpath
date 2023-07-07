@@ -136,6 +136,8 @@ func getPodPhaseFromInstancePhase(state string) v1.PodPhase {
 		return v1.PodPending
 	case "STARTING":
 		return v1.PodPending
+	case "DELETING":
+		return v1.PodPending
 	}
 
 	return v1.PodUnknown

@@ -249,14 +249,15 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 	}
 
 	workloadContainerSpec := workload_models.V1ContainerSpec{
-		Image:          k8sContainer.Image,
-		Command:        k8sCommand,
-		Ports:          ports,
-		Env:            env,
-		Resources:      resources,
-		VolumeMounts:   volumeMounts,
-		LivenessProbe:  livenessProbe,
-		ReadinessProbe: readinessProbe,
+		Image:           k8sContainer.Image,
+		Command:         k8sCommand,
+		Ports:           ports,
+		Env:             env,
+		Resources:       resources,
+		VolumeMounts:    volumeMounts,
+		LivenessProbe:   livenessProbe,
+		ReadinessProbe:  readinessProbe,
+		ImagePullPolicy: imagePullPolicy,
 	}
 
 	return &workloadContainerSpec, nil

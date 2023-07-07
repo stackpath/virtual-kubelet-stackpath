@@ -3634,7 +3634,7 @@
     "OAuth2": {
       "type": "oauth2",
       "flow": "application",
-      "tokenUrl": "http://localhost:8081/identity/v1/oauth2/token"
+      "tokenUrl": "https://gateway.stackpath.com/identity/v1/oauth2/token"
     }
   },
   "security": [

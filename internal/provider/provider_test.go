@@ -193,6 +193,7 @@ func TestGetPodStatus(t *testing.T) {
 		string(workload_models.Workloadv1InstanceInstancePhaseCOMPLETED):  v1.PodSucceeded,
 		string(workload_models.Workloadv1InstanceInstancePhaseSTOPPED):    v1.PodSucceeded,
 		string(workload_models.Workloadv1InstanceInstancePhaseFAILED):     v1.PodFailed,
+		string(workload_models.Workloadv1InstanceInstancePhaseDELETING):   v1.PodPending,
 	}
 
 	for workloadPhase, podPhase := range phases {
