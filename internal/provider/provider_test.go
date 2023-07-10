@@ -626,6 +626,19 @@ func createTestPod(podName, podNamespace string) *v1.Pod {
 						SuccessThreshold:    3,
 						FailureThreshold:    5,
 					},
+					StartupProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromString("http"),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
 					ReadinessProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
@@ -662,6 +675,19 @@ func createTestPod(podName, podNamespace string) *v1.Pod {
 					},
 
 					LivenessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromString("http"),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+					StartupProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
 								Port: intstr.FromString("http"),
