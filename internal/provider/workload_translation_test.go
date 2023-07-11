@@ -1706,3 +1706,41 @@ func TestWorkloadRuntimeSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestGetWorkloadContainerImagePullPolicyFrom(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	var tests = []struct {
+		description string
+		pullPolicy  v1.PullPolicy
+		expected    *workload_models.V1ContainerImagePullPolicy
+	}{
+		{
+			description: "successfully translate pull always policy",
+			pullPolicy:  v1.PullAlways,
+			expected:    workload_models.V1ContainerImagePullPolicyALWAYS.Pointer(),
+		},
+		{
+			description: "successfully translate pull not presented policy",
+			pullPolicy:  v1.PullIfNotPresent,
+			expected:    workload_models.V1ContainerImagePullPolicyIFNOTPRESENT.Pointer(),
+		},
+		{
+			description: "returns nil for not supported image pull policy",
+			pullPolicy:  v1.PullNever,
+			expected:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			policy := provider.getWorkloadContainerImagePullPolicyFrom(test.pullPolicy)
+			assert.Equal(t, test.expected, policy)
+		})
+	}
+}

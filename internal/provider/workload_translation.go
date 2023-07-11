@@ -369,9 +369,8 @@ func (p *StackpathProvider) getWorkloadContainerImagePullPolicyFrom(containerIma
 		return workload_models.V1ContainerImagePullPolicyIFNOTPRESENT.Pointer()
 	}
 
-	// TODO: One of the options is not supported: v1.PullNever
-	// TODO: Do we have to raise an error here?
-	return workload_models.V1ContainerImagePullPolicyCONTAINERIMAGEPULLPOLICYUNSPECIFIED.Pointer()
+	p.logger.Warnf("'%s' container image pull policy is not supported, skipping", containerImagePolicy)
+	return nil
 }
 
 func (p *StackpathProvider) getWorkloadContainerPortsFrom(k8sPorts []v1.ContainerPort) workload_models.V1InstancePortMapEntry {

@@ -9,7 +9,7 @@ This feature enables you to use the Kubernetes control plane to create and manag
 - **Volumes using `csi`**. Mount volumes in your pods using the `csi` volume type with the driver `virtual-kubelet.storage.compute.edgeengine.io`.
 - **Environment variables**. Set environment variables for your pods using the Kubernetes `env` field in your pod specification.
 - **Instance size selection**. Specify resource requirements for your pods using the Kubernetes `resources` field in your pod specification.
-- **Liveness and readiness probes**. Configure `liveness` and `readiness` probes for your pods using - the Kubernetes livenessProbe and readinessProbe fields in your pod specification.
+- **Startup, liveness and readiness probes**. Configure `startup`, `liveness` and `readiness` probes for your pods using - the Kubernetes startupProbe, livenessProbe and readinessProbe fields in your pod specification.
 - **Private images using image pull secrets**. Use Kubernetes image pull secrets to securely pull private container images from a registry using the Kubernetes `imagePullSecrets` field in your pod specification.
 - **Run in container**. Run commands inside your pods by calling `kubectl exec` and specifying the pod and command.
 
@@ -27,7 +27,7 @@ Here are the specifications for each of the available instance types:
     | SP-5 | 8 | 32GB |
 
 - **Limited network control**. The provider currently does not support custom network settings for the StackPath workload. The workload will run with a public and private IP, and network policies must be created separately.
-- **Limited probe support**. The provider currently only supports the `httpGet` and `tcpSocket` probes for liveness and readiness checks. Other probe types, such as `grpc` or `exec`, are not currently supported.
+- **Limited probe support**. The provider currently only supports the `httpGet` and `tcpSocket` probes for startup, liveness and readiness checks. Other probe types, such as `grpc` or `exec`, are not currently supported.
 - **Limited Kubernetes features**. The provider only supports some of the Kubernetes pod specification as supported by the StackPath edge compute platform, there may be some advanced features that are not yet supported or that require additional configuration. **The provider will ignore any specification that aren't supported when creating the StackPath workload**.
 In addition, the workloads created on the StackPath platform will not have network access to the Kubernetes API or any pods running in nodes that aren't in the virtual kubelet provider.
 - **Pod name length**. The provider is subject to the limitations of StackPath's workload slugs, which are limited to 63 characters. The provider constructs the slug by concatenating the namespace with the pod name separated by a dash. It is important to ensure that this string does not exceed 63 characters, as exceeding this limit will prevent the pod from being created.
