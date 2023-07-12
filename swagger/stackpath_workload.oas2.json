@@ -2839,15 +2839,21 @@
         "createdAt": {
           "type": "string",
           "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true,
           "title": "The date that a metadata entry was created"
         },
         "updatedAt": {
           "type": "string",
           "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true,
           "title": "The date that a metadata entry was last updated"
         },
         "deleteRequestedAt": {
           "type": "string",
+          "readOnly": true,
+          "x-nullable": true,
           "format": "date-time",
           "title": "The date an entity was requested to be deleted"
         },
@@ -3166,10 +3172,12 @@
       "properties": {
         "stackId": {
           "type": "string",
+          "readOnly": true,
           "title": "The ID of the stack that a volume claim belongs to"
         },
         "id": {
           "type": "string",
+          "readOnly": true,
           "title": "A volume claim's unique identifier"
         },
         "name": {
@@ -3188,6 +3196,7 @@
           "$ref": "#/definitions/v1VolumeClaimSpec"
         },
         "phase": {
+          "readOnly": true,
           "$ref": "#/definitions/VolumeClaimVolumeClaimPhase"
         }
       },
@@ -3213,10 +3222,12 @@
       "properties": {
         "stackId": {
           "type": "string",
+          "readOnly": true,
           "title": "The ID of the stack that a workload belongs to"
         },
         "id": {
           "type": "string",
+          "readOnly": true,
           "title": "A workload's unique identifier"
         },
         "name": {
@@ -3238,6 +3249,7 @@
           "$ref": "#/definitions/v1TargetMapEntry"
         },
         "status": {
+          "readOnly": true,
           "$ref": "#/definitions/v1WorkloadStatus"
         }
       },
@@ -3382,15 +3394,9 @@
       "title": "Which status a workload is currently in"
     },
     "v1WrappedImagePullCredentials": {
-      "type": "object",
-      "properties": {
-        "imagePullCredentials": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1ImagePullCredential"
-          },
-          "title": "Credentials that should be used to pull workload images"
-        }
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/v1ImagePullCredential"
       },
       "title": "The credentials that should be used to pull the container image"
     },

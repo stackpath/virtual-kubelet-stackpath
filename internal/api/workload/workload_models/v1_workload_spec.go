@@ -23,7 +23,7 @@ type V1WorkloadSpec struct {
 	Containers V1ContainerSpecMapEntry `json:"containers,omitempty"`
 
 	// image pull credentials
-	ImagePullCredentials *V1WrappedImagePullCredentials `json:"imagePullCredentials,omitempty"`
+	ImagePullCredentials V1WrappedImagePullCredentials `json:"imagePullCredentials,omitempty"`
 
 	// init containers
 	InitContainers V1ContainerSpecMapEntry `json:"initContainers,omitempty"`
@@ -105,15 +105,13 @@ func (m *V1WorkloadSpec) validateImagePullCredentials(formats strfmt.Registry) e
 		return nil
 	}
 
-	if m.ImagePullCredentials != nil {
-		if err := m.ImagePullCredentials.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("imagePullCredentials")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("imagePullCredentials")
-			}
-			return err
+	if err := m.ImagePullCredentials.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("imagePullCredentials")
+		} else if ce, ok := err.(*errors.CompositeError); ok {
+			return ce.ValidateName("imagePullCredentials")
 		}
+		return err
 	}
 
 	return nil
@@ -282,15 +280,13 @@ func (m *V1WorkloadSpec) contextValidateContainers(ctx context.Context, formats 
 
 func (m *V1WorkloadSpec) contextValidateImagePullCredentials(ctx context.Context, formats strfmt.Registry) error {
 
-	if m.ImagePullCredentials != nil {
-		if err := m.ImagePullCredentials.ContextValidate(ctx, formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("imagePullCredentials")
-			} else if ce, ok := err.(*errors.CompositeError); ok {
-				return ce.ValidateName("imagePullCredentials")
-			}
-			return err
+	if err := m.ImagePullCredentials.ContextValidate(ctx, formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("imagePullCredentials")
+		} else if ce, ok := err.(*errors.CompositeError); ok {
+			return ce.ValidateName("imagePullCredentials")
 		}
+		return err
 	}
 
 	return nil

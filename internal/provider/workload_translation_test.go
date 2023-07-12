@@ -1379,7 +1379,7 @@ func TestGetWorkloadFrom(t *testing.T) {
 							VolumeMounts: []*workload_models.V1InstanceVolumeMount{},
 						},
 					},
-					ImagePullCredentials: &workload_models.V1WrappedImagePullCredentials{ImagePullCredentials: []*workload_models.V1ImagePullCredential{}},
+					ImagePullCredentials: workload_models.V1WrappedImagePullCredentials{},
 					NetworkInterfaces: []*workload_models.V1NetworkInterface{
 						{
 							EnableOneToOneNat: true,
@@ -1510,7 +1510,7 @@ func TestGetWorkloadFrom(t *testing.T) {
 						},
 					},
 
-					ImagePullCredentials: &workload_models.V1WrappedImagePullCredentials{ImagePullCredentials: []*workload_models.V1ImagePullCredential{}},
+					ImagePullCredentials: workload_models.V1WrappedImagePullCredentials{},
 					NetworkInterfaces: []*workload_models.V1NetworkInterface{
 						{
 							EnableOneToOneNat: true,

@@ -29,8 +29,8 @@ type dockerConfigJSON struct {
 	HTTPHeaders map[string]string `json:"HttpHeaders,omitempty"`
 }
 
-func (p *StackpathProvider) getImagePullCredentialsFrom(namespace string, k8sImagePullSecrets []v1.LocalObjectReference) (*workload_models.V1WrappedImagePullCredentials, error) {
-	imagePullCredentials := workload_models.V1WrappedImagePullCredentials{ImagePullCredentials: []*workload_models.V1ImagePullCredential{}}
+func (p *StackpathProvider) getImagePullCredentialsFrom(namespace string, k8sImagePullSecrets []v1.LocalObjectReference) ([]*workload_models.V1ImagePullCredential, error) {
+	imagePullCredentials := workload_models.V1WrappedImagePullCredentials{}
 	// if there are image pull credentials, fetch the secret and fill the details.
 	if len(k8sImagePullSecrets) != 0 {
 		for _, k8sImagePullCredential := range k8sImagePullSecrets {
@@ -42,10 +42,10 @@ func (p *StackpathProvider) getImagePullCredentialsFrom(namespace string, k8sIma
 				}
 				return nil, err
 			}
-			imagePullCredentials.ImagePullCredentials = append(imagePullCredentials.ImagePullCredentials, imagePullCredential...)
+			imagePullCredentials = append(imagePullCredentials, imagePullCredential...)
 		}
 	}
-	return &imagePullCredentials, nil
+	return imagePullCredentials, nil
 }
 
 func (p *StackpathProvider) getImagePullCredentialFrom(namespace string, k8sImagePullSecret v1.LocalObjectReference) ([]*workload_models.V1ImagePullCredential, error) {

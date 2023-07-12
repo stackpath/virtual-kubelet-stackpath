@@ -325,7 +325,7 @@ func TestImagePullCredentials(t *testing.T) {
 			if err != nil {
 				assert.ErrorContains(t, err, test.err, test.description)
 			} else {
-				assert.Equal(t, test.expected, imagePullCredentials.ImagePullCredentials, test.description)
+				assert.Equal(t, test.expected, imagePullCredentials, test.description)
 			}
 		})
 	}
