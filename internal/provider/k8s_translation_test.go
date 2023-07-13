@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

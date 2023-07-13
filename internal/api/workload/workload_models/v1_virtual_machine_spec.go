@@ -19,7 +19,9 @@ import (
 // swagger:model v1VirtualMachineSpec
 type V1VirtualMachineSpec struct {
 
-	// The location of a Docker image to run as a virtual machine
+	// The image to use for the virtual machine
+	//
+	// This is in the format of <stack-slug>/<image-family>[:<image-tag>]. If the image tag portion is omitted, 'default' is assumed which is the most recently created, ready, and non-deprecated image of that slug. A set of common images is present on the 'stackpath-edge' stack.
 	Image string `json:"image,omitempty"`
 
 	// liveness probe

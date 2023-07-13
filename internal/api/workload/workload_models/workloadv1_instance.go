@@ -43,6 +43,12 @@ type Workloadv1Instance struct {
 	// An instance's unique identifier
 	ID string `json:"id,omitempty"`
 
+	// Status of the init_containers running within the workload instance
+	InitContainerStatuses []*V1ContainerStatus `json:"initContainerStatuses"`
+
+	// init containers
+	InitContainers V1ContainerSpecMapEntry `json:"initContainers,omitempty"`
+
 	// An instance's IPv4 address
 	IPAddress string `json:"ipAddress,omitempty"`
 
@@ -60,7 +66,7 @@ type Workloadv1Instance struct {
 
 	// An instance's name
 	//
-	// Instance names are generated from their corresponding workload's slug, followed by a unique hash
+	// Instance names are generated from their corresponsing workload's slug, followed by a unique hash
 	Name string `json:"name,omitempty"`
 
 	// An instance's network interfaces
@@ -74,6 +80,9 @@ type Workloadv1Instance struct {
 
 	// resources
 	Resources *V1ResourceRequirements `json:"resources,omitempty"`
+
+	// runtime
+	Runtime *V1WorkloadInstanceRuntimeSettings `json:"runtime,omitempty"`
 
 	// The date an instance was scheduled
 	// Format: date-time
@@ -116,6 +125,14 @@ func (m *Workloadv1Instance) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateInitContainerStatuses(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateInitContainers(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateLocation(formats); err != nil {
 		res = append(res, err)
 	}
@@ -133,6 +150,10 @@ func (m *Workloadv1Instance) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateResources(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateRuntime(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -222,6 +243,51 @@ func (m *Workloadv1Instance) validateDeletedAt(formats strfmt.Registry) error {
 
 	if err := validate.FormatOf("deletedAt", "body", "date-time", m.DeletedAt.String(), formats); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *Workloadv1Instance) validateInitContainerStatuses(formats strfmt.Registry) error {
+	if swag.IsZero(m.InitContainerStatuses) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.InitContainerStatuses); i++ {
+		if swag.IsZero(m.InitContainerStatuses[i]) { // not required
+			continue
+		}
+
+		if m.InitContainerStatuses[i] != nil {
+			if err := m.InitContainerStatuses[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("initContainerStatuses" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("initContainerStatuses" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *Workloadv1Instance) validateInitContainers(formats strfmt.Registry) error {
+	if swag.IsZero(m.InitContainers) { // not required
+		return nil
+	}
+
+	if m.InitContainers != nil {
+		if err := m.InitContainers.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("initContainers")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("initContainers")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -329,6 +395,25 @@ func (m *Workloadv1Instance) validateResources(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *Workloadv1Instance) validateRuntime(formats strfmt.Registry) error {
+	if swag.IsZero(m.Runtime) { // not required
+		return nil
+	}
+
+	if m.Runtime != nil {
+		if err := m.Runtime.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("runtime")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("runtime")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *Workloadv1Instance) validateScheduledAt(formats strfmt.Registry) error {
 	if swag.IsZero(m.ScheduledAt) { // not required
 		return nil
@@ -410,6 +495,14 @@ func (m *Workloadv1Instance) ContextValidate(ctx context.Context, formats strfmt
 		res = append(res, err)
 	}
 
+	if err := m.contextValidateInitContainerStatuses(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateInitContainers(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateLocation(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -427,6 +520,10 @@ func (m *Workloadv1Instance) ContextValidate(ctx context.Context, formats strfmt
 	}
 
 	if err := m.contextValidateResources(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateRuntime(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -471,6 +568,40 @@ func (m *Workloadv1Instance) contextValidateContainers(ctx context.Context, form
 			return ve.ValidateName("containers")
 		} else if ce, ok := err.(*errors.CompositeError); ok {
 			return ce.ValidateName("containers")
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (m *Workloadv1Instance) contextValidateInitContainerStatuses(ctx context.Context, formats strfmt.Registry) error {
+
+	for i := 0; i < len(m.InitContainerStatuses); i++ {
+
+		if m.InitContainerStatuses[i] != nil {
+			if err := m.InitContainerStatuses[i].ContextValidate(ctx, formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("initContainerStatuses" + "." + strconv.Itoa(i))
+				} else if ce, ok := err.(*errors.CompositeError); ok {
+					return ce.ValidateName("initContainerStatuses" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *Workloadv1Instance) contextValidateInitContainers(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := m.InitContainers.ContextValidate(ctx, formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("initContainers")
+		} else if ce, ok := err.(*errors.CompositeError); ok {
+			return ce.ValidateName("initContainers")
 		}
 		return err
 	}
@@ -554,6 +685,22 @@ func (m *Workloadv1Instance) contextValidateResources(ctx context.Context, forma
 				return ve.ValidateName("resources")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
 				return ce.ValidateName("resources")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Workloadv1Instance) contextValidateRuntime(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Runtime != nil {
+		if err := m.Runtime.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("runtime")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("runtime")
 			}
 			return err
 		}

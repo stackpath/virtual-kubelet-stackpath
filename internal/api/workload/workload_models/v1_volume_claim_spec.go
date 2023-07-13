@@ -20,6 +20,11 @@ type V1VolumeClaimSpec struct {
 
 	// resources
 	Resources *V1ResourceRequirements `json:"resources,omitempty"`
+
+	// Storage class for a volume claim
+	//
+	// This defaults to the 'stackpath-edge/san' value if none is provided.
+	StorageClass string `json:"storageClass,omitempty"`
 }
 
 // Validate validates this v1 volume claim spec

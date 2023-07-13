@@ -64,6 +64,12 @@ const (
 
 	// V1GetMetricsRequestTrafficRegionINTERNET captures enum value "INTERNET"
 	V1GetMetricsRequestTrafficRegionINTERNET V1GetMetricsRequestTrafficRegion = "INTERNET"
+
+	// V1GetMetricsRequestTrafficRegionAFRICA captures enum value "AFRICA"
+	V1GetMetricsRequestTrafficRegionAFRICA V1GetMetricsRequestTrafficRegion = "AFRICA"
+
+	// V1GetMetricsRequestTrafficRegionMIDDLEEAST captures enum value "MIDDLE_EAST"
+	V1GetMetricsRequestTrafficRegionMIDDLEEAST V1GetMetricsRequestTrafficRegion = "MIDDLE_EAST"
 )
 
 // for schema
@@ -71,7 +77,7 @@ var v1GetMetricsRequestTrafficRegionEnum []interface{}
 
 func init() {
 	var res []V1GetMetricsRequestTrafficRegion
-	if err := json.Unmarshal([]byte(`["ALL","LOCAL_NODE","LOCAL_POP","NORTH_AMERICA","EUROPE","ASIA","OCEANIA","SOUTH_AMERICA","MARKETPLACE","INTERNAL","INTERNET"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["ALL","LOCAL_NODE","LOCAL_POP","NORTH_AMERICA","EUROPE","ASIA","OCEANIA","SOUTH_AMERICA","MARKETPLACE","INTERNAL","INTERNET","AFRICA","MIDDLE_EAST"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {

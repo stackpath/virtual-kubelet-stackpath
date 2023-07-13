@@ -3,12 +3,14 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
-	"github.com/stackpath/vk-stackpath-provider/internal/mocks"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/mocks"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -35,11 +37,10 @@ func TestHttpHeaders(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		workloadHTTP := provider.getProbeHTTPHeadersFrom(test.k8sHTTPHeaders)
+		workloadHTTP := provider.getHTTPHeadersFrom(test.k8sHTTPHeaders)
 		for key, value := range workloadHTTP {
 			assert.Equal(t, test.expectedSPHttpHeaders[key], value)
 		}
-
 	}
 }
 
@@ -220,7 +221,146 @@ func TestProbe(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestContainerLifecycle(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	var tests = []struct {
+		description       string
+		k8sContainer      *v1.Container
+		expectedLifecycle *workload_models.V1ContainerLifecycle
+		err               error
+	}{
+		{
+			description:       "no lifecycle returned for a container that doesn't have lifecycle events",
+			k8sContainer:      &v1.Container{},
+			expectedLifecycle: nil,
+			err:               nil,
+		},
+		{
+			description: "no lifecycle returned for container with an empty lifecycle handler",
+			k8sContainer: &v1.Container{Lifecycle: &v1.Lifecycle{
+				PostStart: &v1.LifecycleHandler{},
+				PreStop:   &v1.LifecycleHandler{},
+			}},
+			expectedLifecycle: nil,
+			err:               nil,
+		},
+		{
+			description: "lifecycle with TCP socket action that has a string port that doesn't exist",
+			k8sContainer: &v1.Container{
+				Lifecycle: &v1.Lifecycle{
+					PostStart: &v1.LifecycleHandler{
+						TCPSocket: &v1.TCPSocketAction{
+							Port: intstr.IntOrString{
+								Type: intstr.String, StrVal: "http",
+							},
+						},
+					},
+				},
+			},
+			expectedLifecycle: nil,
+			err:               fmt.Errorf("unable to find named port: http"),
+		},
+		{
+			description: "lifecycle with HTTP get action that has a string port that doesn't exist",
+			k8sContainer: &v1.Container{
+				Lifecycle: &v1.Lifecycle{
+					PreStop: &v1.LifecycleHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Port: intstr.IntOrString{
+								Type: intstr.String, StrVal: "http",
+							},
+						},
+					},
+				},
+			},
+			expectedLifecycle: nil,
+			err:               fmt.Errorf("unable to find named port: http"),
+		},
+		{
+			description: "exec lifecycle handler is not supported",
+			k8sContainer: &v1.Container{
+				Lifecycle: &v1.Lifecycle{
+					PostStart: &v1.LifecycleHandler{
+						Exec: &v1.ExecAction{
+							Command: []string{"test"},
+						},
+					},
+				},
+			},
+			expectedLifecycle: nil,
+			err:               nil,
+		},
+		{
+			description: "post start lifecycle",
+			k8sContainer: &v1.Container{Lifecycle: &v1.Lifecycle{
+				PostStart: &v1.LifecycleHandler{
+					HTTPGet: &v1.HTTPGetAction{
+						Path:        "path1",
+						Port:        intstr.IntOrString{Type: intstr.Int, IntVal: int32(8000)},
+						Scheme:      v1.URISchemeHTTP,
+						HTTPHeaders: []v1.HTTPHeader{{Name: "test1", Value: "value1"}, {Name: "test2", Value: "value2"}},
+					},
+					TCPSocket: &v1.TCPSocketAction{
+						Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8001)},
+					},
+				},
+				PreStop: &v1.LifecycleHandler{
+					HTTPGet: &v1.HTTPGetAction{
+						Path:        "path2",
+						Port:        intstr.IntOrString{Type: intstr.Int, IntVal: int32(8000)},
+						Scheme:      v1.URISchemeHTTP,
+						HTTPHeaders: []v1.HTTPHeader{{Name: "test3", Value: "value3"}, {Name: "test4", Value: "value4"}},
+					},
+					TCPSocket: &v1.TCPSocketAction{
+						Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8002)},
+					},
+				},
+			}},
+			expectedLifecycle: &workload_models.V1ContainerLifecycle{
+				PostStart: &workload_models.V1ContainerLifecycleHandler{
+					HTTPGet: &workload_models.V1HTTPGetAction{
+						Path:        "path1",
+						Port:        8000,
+						Scheme:      "HTTP",
+						HTTPHeaders: workload_models.V1StringMapEntry{"test1": "value1", "test2": "value2"},
+					},
+					TCPSocket: &workload_models.V1TCPSocketAction{
+						Port: 8001,
+					},
+				},
+				PreStop: &workload_models.V1ContainerLifecycleHandler{
+					HTTPGet: &workload_models.V1HTTPGetAction{
+						Path:        "path2",
+						Port:        8000,
+						Scheme:      "HTTP",
+						HTTPHeaders: workload_models.V1StringMapEntry{"test3": "value3", "test4": "value4"},
+					},
+					TCPSocket: &workload_models.V1TCPSocketAction{
+						Port: 8002,
+					},
+				},
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			containerLifecycle, err := provider.getWorkloadContainerLifecycle(test.k8sContainer)
+			if err != nil {
+				assert.Equal(t, test.err, err, test.description)
+			} else {
+				assert.Equal(t, test.expectedLifecycle, containerLifecycle, test.description)
+			}
+		})
+	}
 }
 
 func TestVolumeMounts(t *testing.T) {
@@ -747,7 +887,6 @@ func TestWorkloadVolumes(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestGetWorkloadFromErrorsWithInvalidVolumeSize(t *testing.T) {
@@ -785,43 +924,94 @@ func TestGetWorkloadFromErrorsWithInvalidLivenessProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to create the test provider", err)
 	}
-	pod := v1.Pod{
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
-				{
-					Name: "valid-volume",
-					VolumeSource: v1.VolumeSource{
-						CSI: &v1.CSIVolumeSource{
-							Driver:           stackpathVirtualKubeletCSIDriver,
-							VolumeAttributes: map[string]string{"size": "1Gi"},
-						},
-					},
-				},
-			},
-			Containers: []v1.Container{
-				{
-					Name:  "test",
-					Image: "nginx:latest",
-					Ports: []v1.ContainerPort{
+	testCases := []struct {
+		description   string
+		pod           *v1.Pod
+		expectedError error
+	}{
+		{
+			description: "fails to create get a workload form the pod due to bad liveness probe port set for the container",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
 						{
-							Name:          "http",
-							ContainerPort: int32(80),
+							Name: "valid-volume",
+							VolumeSource: v1.VolumeSource{
+								CSI: &v1.CSIVolumeSource{
+									Driver:           stackpathVirtualKubeletCSIDriver,
+									VolumeAttributes: map[string]string{"size": "1Gi"},
+								},
+							},
 						},
 					},
-					LivenessProbe: &v1.Probe{
-						ProbeHandler: v1.ProbeHandler{
-							HTTPGet: &v1.HTTPGetAction{
-								Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+					Containers: []v1.Container{
+						{
+							Name:  "test",
+							Image: "nginx:latest",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: int32(80),
+								},
+							},
+							LivenessProbe: &v1.Probe{
+								ProbeHandler: v1.ProbeHandler{
+									HTTPGet: &v1.HTTPGetAction{
+										Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+									},
+								},
 							},
 						},
 					},
 				},
 			},
+			expectedError: errors.New("unable to find named port: not-exists"),
+		}, {
+			description: "fails to create get a workload form the pod due to bad liveness probe port set for the init container",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
+						{
+							Name: "valid-volume",
+							VolumeSource: v1.VolumeSource{
+								CSI: &v1.CSIVolumeSource{
+									Driver:           stackpathVirtualKubeletCSIDriver,
+									VolumeAttributes: map[string]string{"size": "1Gi"},
+								},
+							},
+						},
+					},
+					InitContainers: []v1.Container{
+						{
+							Name:  "test",
+							Image: "nginx:latest",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: int32(80),
+								},
+							},
+							LivenessProbe: &v1.Probe{
+								ProbeHandler: v1.ProbeHandler{
+									HTTPGet: &v1.HTTPGetAction{
+										Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: errors.New("unable to find named port: not-exists"),
 		},
 	}
-
-	_, err = provider.getWorkloadFrom(&pod)
-	assert.ErrorContains(t, err, "unable to find named port")
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			_, err = provider.getWorkloadFrom(c.pod)
+			assert.Equal(t, err, c.expectedError)
+		},
+		)
+	}
 }
 
 func TestGetWorkloadFromErrorsWithInvalidReadinessProbe(t *testing.T) {
@@ -855,6 +1045,52 @@ func TestGetWorkloadFromErrorsWithInvalidReadinessProbe(t *testing.T) {
 						},
 					},
 					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err = provider.getWorkloadFrom(&pod)
+	assert.ErrorContains(t, err, "unable to find named port")
+}
+
+func TestGetWorkloadFromErrorsWithInvalidStartupProbe(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	pod := v1.Pod{
+		Spec: v1.PodSpec{
+			Volumes: []v1.Volume{
+				{
+					Name: "valid-volume",
+					VolumeSource: v1.VolumeSource{
+						CSI: &v1.CSIVolumeSource{
+							Driver:           stackpathVirtualKubeletCSIDriver,
+							VolumeAttributes: map[string]string{"size": "1Gi"},
+						},
+					},
+				},
+			},
+			Containers: []v1.Container{
+				{
+					Name:  "test",
+					Image: "nginx:latest",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          "http",
+							ContainerPort: int32(80),
+						},
+					},
+					StartupProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
 								Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
@@ -976,6 +1212,8 @@ func TestContainerWithCommand(t *testing.T) {
 				Command: []string{
 					"test",
 					"command",
+				},
+				Args: []string{
 					"test",
 					"args",
 				},
@@ -1017,6 +1255,7 @@ func TestContainerWithCommand(t *testing.T) {
 			assert.ErrorContains(t, err, test.err, test.description)
 		} else {
 			assert.Equal(t, test.expected.Command, containerSpec.Command, test.description)
+			assert.Equal(t, test.expected.Args, containerSpec.Args, test.description)
 		}
 	}
 }
@@ -1052,6 +1291,21 @@ func TestGetWorkloadFrom(t *testing.T) {
 							Image:   "test-image",
 							Command: []string{"/sh/bash"},
 							Name:    "nginx",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 8080,
+								},
+							},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: v1.TerminationMessageReadFile,
+						},
+					},
+					InitContainers: []v1.Container{
+						{
+							Image:   "init-image",
+							Command: []string{"/sh/bash"},
+							Name:    "init",
 							Ports: []v1.ContainerPort{
 								{
 									Name:          "http",
@@ -1097,6 +1351,31 @@ func TestGetWorkloadFrom(t *testing.T) {
 									"memory": "2Gi",
 								},
 							},
+							VolumeMounts:             []*workload_models.V1InstanceVolumeMount{},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: workload_models.V1ContainerTerminationMessagePolicyFILE.Pointer(),
+						},
+					},
+					InitContainers: workload_models.V1ContainerSpecMapEntry{
+						"init": workload_models.V1ContainerSpec{
+							Env:     workload_models.V1EnvironmentVariableMapEntry{},
+							Image:   "init-image",
+							Command: []string{"/sh/bash"},
+							Ports: workload_models.V1InstancePortMapEntry{"http": workload_models.V1InstancePort{
+								Port:                        8080,
+								EnableImplicitNetworkPolicy: false,
+								Protocol:                    "TCP",
+							}},
+							Resources: &workload_models.V1ResourceRequirements{
+								Limits: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+								Requests: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+							},
 							VolumeMounts: []*workload_models.V1InstanceVolumeMount{},
 						},
 					},
@@ -1111,6 +1390,138 @@ func TestGetWorkloadFrom(t *testing.T) {
 						},
 					},
 					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
+					Runtime:              &workload_models.V1WorkloadInstanceRuntimeSettings{},
+				},
+				Targets: workload_models.V1TargetMapEntry{
+					"city-code": workload_models.V1Target{
+						Spec: &workload_models.V1TargetSpec{
+							DeploymentScope: "cityCode",
+							Deployments: &workload_models.V1DeploymentSpec{
+								MaxReplicas: 1,
+								MinReplicas: 1,
+								Selectors: []*workload_models.V1MatchExpression{
+									{
+										Key:      "cityCode",
+										Operator: "in",
+										Values:   []string{testCityCode},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			description: "fails to translate due to an error in container's lifecycle",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
+						{
+							Name: "valid-volume",
+							VolumeSource: v1.VolumeSource{
+								CSI: &v1.CSIVolumeSource{
+									Driver:           stackpathVirtualKubeletCSIDriver,
+									VolumeAttributes: map[string]string{"size": "1Gi"},
+								},
+							},
+						},
+					},
+					Containers: []v1.Container{
+						{
+							Name:  "test",
+							Image: "nginx:latest",
+							Lifecycle: &v1.Lifecycle{
+								PostStart: &v1.LifecycleHandler{
+									TCPSocket: &v1.TCPSocketAction{
+										Port: intstr.IntOrString{
+											Type: intstr.String, StrVal: "http",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: nil,
+			err:      "unable to find named port: http",
+		},
+
+		{
+			description: "successfully translates from v1.Pod to workload_model.V1Workload with TerminationMessagePolicy FALLBACK_TO_LOGS_ON_ERROR",
+			pod: v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Name:    "nginx",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 8080,
+								},
+							},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: v1.TerminationMessageFallbackToLogsOnError,
+						},
+					},
+				},
+			},
+			expected: &workload_models.V1Workload{
+				Name: "namespace-name",
+				Slug: "namespace-name",
+				Metadata: &workload_models.V1Metadata{
+					Labels: map[string]string{
+						podNameLabelKey:      "name",
+						podNamespaceLabelKey: "namespace",
+						nodeNameLabelKey:     "vk-mock",
+					},
+				},
+				Spec: &workload_models.V1WorkloadSpec{
+					Containers: workload_models.V1ContainerSpecMapEntry{
+						"nginx": workload_models.V1ContainerSpec{
+							Env:     workload_models.V1EnvironmentVariableMapEntry{},
+							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Ports: workload_models.V1InstancePortMapEntry{"http": workload_models.V1InstancePort{
+								Port:                        8080,
+								EnableImplicitNetworkPolicy: false,
+								Protocol:                    "TCP",
+							}},
+							Resources: &workload_models.V1ResourceRequirements{
+								Limits: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+								Requests: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+							},
+							VolumeMounts:             []*workload_models.V1InstanceVolumeMount{},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: workload_models.V1ContainerTerminationMessagePolicyFALLBACKTOLOGSONERROR.Pointer(),
+						},
+					},
+
+					ImagePullCredentials: workload_models.V1WrappedImagePullCredentials{},
+					NetworkInterfaces: []*workload_models.V1NetworkInterface{
+						{
+							EnableOneToOneNat: true,
+							IPFamilies:        []*workload_models.V1IPFamily{workload_models.NewV1IPFamily("IPv4")},
+							IPV6Subnet:        "",
+							Network:           "default",
+							Subnet:            "",
+						},
+					},
+					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
+					Runtime:              &workload_models.V1WorkloadInstanceRuntimeSettings{},
 				},
 				Targets: workload_models.V1TargetMapEntry{
 					"city-code": workload_models.V1Target{
@@ -1141,5 +1552,195 @@ func TestGetWorkloadFrom(t *testing.T) {
 		} else {
 			assert.Equal(t, test.expected, workload, test.description)
 		}
+	}
+}
+
+func TestWorkloadRuntimeSettings(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	var testInt64 int64 = 60
+	var testString string = "value"
+	var testBool = true
+
+	var tests = []struct {
+		description string
+		pod         v1.Pod
+		expected    *workload_models.V1WorkloadInstanceRuntimeSettings
+		err         error
+		len         int
+	}{
+		{
+			description: "empty pod return ok without runtime settings",
+			pod:         v1.Pod{},
+			expected:    &workload_models.V1WorkloadInstanceRuntimeSettings{},
+		},
+		{
+			description: "successfully translate all runtime settings",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					TerminationGracePeriodSeconds: &testInt64,
+					HostAliases: []v1.HostAlias{{
+						IP:        "127.0.0.1",
+						Hostnames: []string{"Hostname1", "Hostname2"},
+					}},
+					DNSConfig: &v1.PodDNSConfig{
+						Options: []v1.PodDNSConfigOption{{
+							Name:  "Test",
+							Value: &testString,
+						}},
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+					},
+					ShareProcessNamespace: &testBool,
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					TerminationGracePeriodSeconds: strconv.Itoa(int(testInt64)),
+					HostAliases: []*workload_models.V1HostAlias{
+						{
+							IP:        "127.0.0.1",
+							Hostnames: []string{"Hostname1", "Hostname2"},
+						},
+					},
+					DNSConfig: &workload_models.V1DNSConfig{
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+						Options: []*workload_models.V1DNSConfigOption{
+							{
+								Name:  "Test",
+								Value: testString,
+							},
+						},
+					},
+					ShareProcessNamespace: testBool,
+				},
+			},
+		},
+		{
+			description: "successfully translate share process name runtime setting ",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					ShareProcessNamespace: &testBool,
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					ShareProcessNamespace: testBool,
+				},
+			},
+		},
+		{
+			description: "successfully translate DNS config runtime setting ",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					DNSConfig: &v1.PodDNSConfig{
+						Options: []v1.PodDNSConfigOption{{
+							Name:  "Test",
+							Value: &testString,
+						}},
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+					},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					DNSConfig: &workload_models.V1DNSConfig{
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+						Options: []*workload_models.V1DNSConfigOption{
+							{
+								Name:  "Test",
+								Value: testString,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			description: "successfully translate host aliases runtime setting ",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					HostAliases: []v1.HostAlias{{
+						IP:        "127.0.0.1",
+						Hostnames: []string{"Hostname1", "Hostname2"},
+					}},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					HostAliases: []*workload_models.V1HostAlias{
+						{
+							IP:        "127.0.0.1",
+							Hostnames: []string{"Hostname1", "Hostname2"},
+						},
+					}},
+			},
+		},
+		{
+			description: "successfully translate termination grace period runtime setting",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					TerminationGracePeriodSeconds: &testInt64,
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					TerminationGracePeriodSeconds: strconv.Itoa(int(testInt64)),
+				},
+			},
+		},
+	}
+
+	for _, c := range tests {
+		t.Run(c.description, func(t *testing.T) {
+			runtime := provider.getWorkloadRuntimeSettingsFrom(c.pod.Spec)
+			assert.Equal(t, c.expected, runtime)
+		})
+	}
+}
+
+func TestGetWorkloadContainerImagePullPolicyFrom(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	var tests = []struct {
+		description string
+		pullPolicy  v1.PullPolicy
+		expected    *workload_models.V1ContainerImagePullPolicy
+	}{
+		{
+			description: "successfully translate pull always policy",
+			pullPolicy:  v1.PullAlways,
+			expected:    workload_models.V1ContainerImagePullPolicyALWAYS.Pointer(),
+		},
+		{
+			description: "successfully translate pull not presented policy",
+			pullPolicy:  v1.PullIfNotPresent,
+			expected:    workload_models.V1ContainerImagePullPolicyIFNOTPRESENT.Pointer(),
+		},
+		{
+			description: "returns nil for not supported image pull policy",
+			pullPolicy:  v1.PullNever,
+			expected:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			policy := provider.getWorkloadContainerImagePullPolicyFrom(test.pullPolicy)
+			assert.Equal(t, test.expected, policy)
+		})
 	}
 }

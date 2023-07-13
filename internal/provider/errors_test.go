@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"testing"
 
-	workloads "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 )
@@ -146,7 +146,7 @@ func TestHTTPStatusFromCode(t *testing.T) {
 }
 
 func TestStackPathError(t *testing.T) {
-	response := workloads.NewGetWorkloadsDefault(3)
+	response := workload.NewGetWorkloadsDefault(3)
 	response.Payload = &workload_models.StackpathapiStatus{
 		Code:    int32(HTTPStatusFromCode(3)),
 		Message: "Payload message",

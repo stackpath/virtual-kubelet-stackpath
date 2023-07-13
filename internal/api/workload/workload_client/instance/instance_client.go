@@ -30,6 +30,10 @@ type ClientOption func(*runtime.ClientOperation)
 type ClientService interface {
 	GetWorkloadInstance(params *GetWorkloadInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadInstanceOK, error)
 
+	GetWorkloadInstanceInitialPassword(params *GetWorkloadInstanceInitialPasswordParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadInstanceInitialPasswordOK, error)
+
+	GetWorkloadInstances(params *GetWorkloadInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadInstancesOK, error)
+
 	RestartInstance(params *RestartInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RestartInstanceNoContent, error)
 
 	SetTransport(transport runtime.ClientTransport)
@@ -70,6 +74,82 @@ func (a *Client) GetWorkloadInstance(params *GetWorkloadInstanceParams, authInfo
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*GetWorkloadInstanceDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetWorkloadInstanceInitialPassword gets an instance s initial password
+*/
+func (a *Client) GetWorkloadInstanceInitialPassword(params *GetWorkloadInstanceInitialPasswordParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadInstanceInitialPasswordOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetWorkloadInstanceInitialPasswordParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetWorkloadInstanceInitialPassword",
+		Method:             "GET",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/passwords/initial",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &GetWorkloadInstanceInitialPasswordReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetWorkloadInstanceInitialPasswordOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetWorkloadInstanceInitialPasswordDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetWorkloadInstances retrieves a workload s instances
+*/
+func (a *Client) GetWorkloadInstances(params *GetWorkloadInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadInstancesOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetWorkloadInstancesParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetWorkloadInstances",
+		Method:             "GET",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &GetWorkloadInstancesReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetWorkloadInstancesOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetWorkloadInstancesDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

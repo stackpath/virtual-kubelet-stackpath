@@ -13,7 +13,7 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// V1CreateWorkloadRequest v1 create workload request
+// V1CreateWorkloadRequest A request to create a workload
 //
 // swagger:model v1CreateWorkloadRequest
 type V1CreateWorkloadRequest struct {

@@ -12,19 +12,20 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 )
 
 // GetLogsReader is a Reader for the GetLogs structure.
 type GetLogsReader struct {
 	formats strfmt.Registry
+	writer  io.Writer
 }
 
 // ReadResponse reads a server response into the received o.
 func (o *GetLogsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 	case 200:
-		result := NewGetLogsOK()
+		result := NewGetLogsOK(o.writer)
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
@@ -54,8 +55,11 @@ func (o *GetLogsReader) ReadResponse(response runtime.ClientResponse, consumer r
 }
 
 // NewGetLogsOK creates a GetLogsOK with default headers values
-func NewGetLogsOK() *GetLogsOK {
-	return &GetLogsOK{}
+func NewGetLogsOK(writer io.Writer) *GetLogsOK {
+	return &GetLogsOK{
+
+		Payload: writer,
+	}
 }
 
 /*
@@ -64,7 +68,7 @@ GetLogsOK describes a response with status code 200, with default header values.
 (streaming responses)
 */
 type GetLogsOK struct {
-	Payload *workload_models.V1LogChunk
+	Payload io.Writer
 }
 
 // IsSuccess returns true when this get logs o k response has a 2xx status code
@@ -105,13 +109,11 @@ func (o *GetLogsOK) String() string {
 	return fmt.Sprintf("[GET /workload/v1/stacks/{stack_id}/workloads/{workload_id}/instances/{instance_name}/logs][%d] getLogsOK  %+v", 200, o.Payload)
 }
 
-func (o *GetLogsOK) GetPayload() *workload_models.V1LogChunk {
+func (o *GetLogsOK) GetPayload() io.Writer {
 	return o.Payload
 }
 
 func (o *GetLogsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
-
-	o.Payload = new(workload_models.V1LogChunk)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

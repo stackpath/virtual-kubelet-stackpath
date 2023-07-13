@@ -10,8 +10,8 @@ import (
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
-	"github.com/stackpath/vk-stackpath-provider/internal/config"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/config"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	stats "github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"

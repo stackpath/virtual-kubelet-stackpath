@@ -1,7 +1,7 @@
 // Package provider implements the stackpath virtual kubelet provider
 package provider
 
-import "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+import "github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 
 var (
 	containerResourcesSP1 = workload_models.V1StringMapEntry{"cpu": "1", "memory": "2Gi"}

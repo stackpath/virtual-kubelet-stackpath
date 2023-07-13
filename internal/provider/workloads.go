@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 	"github.com/virtual-kubelet/virtual-kubelet/errdefs"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,13 +16,13 @@ import (
 func (p *StackpathProvider) getWorkloads(ctx context.Context) ([]*workload_models.V1Workload, error) {
 	pageSize := "99999"
 
-	params := &workloads.GetWorkloadsParams{
+	params := &workload.GetWorkloadsParams{
 		StackID:          p.apiConfig.StackID,
 		Context:          ctx,
 		PageRequestFirst: &pageSize,
 	}
 
-	response, err := p.stackpathClient.Workloads.GetWorkloads(params, nil)
+	response, err := p.stackpathClient.Workload.GetWorkloads(params, nil)
 	if err != nil {
 		return nil, NewStackPathError(err)
 	}
@@ -31,13 +31,13 @@ func (p *StackpathProvider) getWorkloads(ctx context.Context) ([]*workload_model
 }
 
 func (p *StackpathProvider) getWorkload(ctx context.Context, namespace string, name string) (*workload_models.V1Workload, error) {
-	getWorkloadParams := workloads.GetWorkloadParams{
+	getWorkloadParams := workload.GetWorkloadParams{
 		Context:    ctx,
 		StackID:    p.apiConfig.StackID,
 		WorkloadID: p.getWorkloadSlug(namespace, name),
 	}
 
-	workloadResult, err := p.stackpathClient.Workloads.GetWorkload(&getWorkloadParams, nil)
+	workloadResult, err := p.stackpathClient.Workload.GetWorkload(&getWorkloadParams, nil)
 	if err != nil {
 		return nil, NewStackPathError(err)
 	}
@@ -83,13 +83,13 @@ func (p *StackpathProvider) getPodFromListerByInstance(ctx context.Context, inst
 }
 
 func (p *StackpathProvider) createWorkload(ctx context.Context, w *workload_models.V1Workload) error {
-	params := workloads.CreateWorkloadParams{
+	params := workload.CreateWorkloadParams{
 		Body:    &workload_models.V1CreateWorkloadRequest{Workload: w},
 		StackID: p.apiConfig.StackID,
 		Context: ctx,
 	}
 
-	_, err := p.stackpathClient.Workloads.CreateWorkload(&params, nil)
+	_, err := p.stackpathClient.Workload.CreateWorkload(&params, nil)
 	if err != nil {
 		return NewStackPathError(err)
 	}
@@ -97,13 +97,13 @@ func (p *StackpathProvider) createWorkload(ctx context.Context, w *workload_mode
 }
 
 func (p *StackpathProvider) deleteWorkload(ctx context.Context, podNamespace, podName string) error {
-	params := workloads.DeleteWorkloadParams{
+	params := workload.DeleteWorkloadParams{
 		StackID:    p.apiConfig.StackID,
 		WorkloadID: p.getWorkloadSlug(podNamespace, podName),
 		Context:    ctx,
 	}
 
-	_, err := p.stackpathClient.Workloads.DeleteWorkload(&params, nil)
+	_, err := p.stackpathClient.Workload.DeleteWorkload(&params, nil)
 	if err != nil {
 		return NewStackPathError(err)
 	}

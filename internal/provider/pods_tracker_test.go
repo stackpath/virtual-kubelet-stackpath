@@ -8,11 +8,11 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
-	workloads "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
-	mocks "github.com/stackpath/vk-stackpath-provider/internal/mocks"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
+	mocks "github.com/stackpath/virtual-kubelet-stackpath/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,9 +30,9 @@ func TestRemoveStalePods(t *testing.T) {
 
 	k8sPods := []*v1.Pod{createTestPod(podName, podNamespace)}
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
+	wsc := mocks.NewWorkloadClientService(mockController)
 	isc := mocks.NewInstanceClientService(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc, Instance: isc}
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc, Instance: isc}
 
 	activePodsLister := mocks.NewMockPodLister(mockController)
 	k8sPodsLister := mocks.NewMockPodLister(mockController)
@@ -63,7 +63,7 @@ func TestRemoveStalePods(t *testing.T) {
 
 				// Mocks GetWorkloads() that returns two workloads, one is active,
 				// second one is considered to be stale (no info in k8s cluster about it)
-				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadsOK{
+				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadsOK{
 					Payload: &workload_models.V1GetWorkloadsResponse{
 						Results: []*workload_models.V1Workload{
 							{
@@ -127,7 +127,7 @@ func TestRemoveStalePods(t *testing.T) {
 
 				// Mocks workload deletion that deletes the staled pod
 				wsc.EXPECT().DeleteWorkload(
-					&workloads.DeleteWorkloadParams{
+					&workload.DeleteWorkloadParams{
 						StackID:    provider.apiConfig.StackID,
 						WorkloadID: provider.getWorkloadSlug(podNamespace, stalePodName),
 						Context:    ctx,
@@ -141,7 +141,7 @@ func TestRemoveStalePods(t *testing.T) {
 
 				// Mocks GetWorkloads() that returns two workloads, one is active,
 				// second one is considered to be stale (no info in k8s cluster about it)
-				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadsOK{
+				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadsOK{
 					Payload: &workload_models.V1GetWorkloadsResponse{
 						Results: []*workload_models.V1Workload{
 							{
@@ -187,7 +187,7 @@ func TestRemoveStalePods(t *testing.T) {
 
 				// Mocks workload deletion that deletes staled pod
 				wsc.EXPECT().DeleteWorkload(
-					&workloads.DeleteWorkloadParams{
+					&workload.DeleteWorkloadParams{
 						StackID:    provider.apiConfig.StackID,
 						WorkloadID: provider.getWorkloadSlug(podNamespace, stalePodName),
 						Context:    ctx,
@@ -217,7 +217,7 @@ func TestRemoveStalePods(t *testing.T) {
 
 				// Mocks GetWorkloads() that returns zero workloads
 				wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(
-					&workloads.GetWorkloadsOK{
+					&workload.GetWorkloadsOK{
 						Payload: &workload_models.V1GetWorkloadsResponse{
 							Results: []*workload_models.V1Workload{},
 						},
@@ -501,9 +501,9 @@ func TestBeginPodTracking(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2*time.Second))
 	defer cancel()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
+	wsc := mocks.NewWorkloadClientService(mockController)
 	isc := mocks.NewInstanceClientService(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Instance: isc, Workloads: wsc}
+	stackPathClientMock := workload_client.EdgeCompute{Instance: isc, Workload: wsc}
 	podLister := mocks.NewMockPodLister(mockController)
 
 	provider, err := createTestProvider(ctx, mocks.NewMockConfigMapLister(mockController), mocks.NewMockSecretLister(mockController), podLister, &stackPathClientMock)
@@ -520,7 +520,7 @@ func TestBeginPodTracking(t *testing.T) {
 	stalePodCleanupInterval = 1
 
 	podLister.EXPECT().List(gomock.Any()).Return(nil, nil).AnyTimes()
-	wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadsOK{
+	wsc.EXPECT().GetWorkloads(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadsOK{
 		Payload: &workload_models.V1GetWorkloadsResponse{
 			Results: []*workload_models.V1Workload{},
 		},

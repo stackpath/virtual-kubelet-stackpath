@@ -3,9 +3,10 @@ package provider
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -63,13 +64,65 @@ func (p *StackpathProvider) getWorkloadSpecFrom(pod *v1.Pod) (*workload_models.V
 		return nil, err
 	}
 
+	initContainers, err := p.getWorkloadContainersFrom(pod.Spec.InitContainers)
+	if err != nil {
+		return nil, err
+	}
+
+	runtimeSettings := p.getWorkloadRuntimeSettingsFrom(pod.Spec)
+
 	spec := workload_models.V1WorkloadSpec{
 		Containers:           containers,
 		NetworkInterfaces:    networkInterfaces,
 		ImagePullCredentials: imagePullCredentials,
 		VolumeClaimTemplates: volumes,
+		InitContainers:       initContainers,
+		Runtime:              runtimeSettings,
 	}
 	return &spec, nil
+}
+
+func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *workload_models.V1WorkloadInstanceRuntimeSettings {
+
+	runtime := workload_models.V1WorkloadInstanceRuntimeSettings{}
+	settings := workload_models.V1WorkloadInstanceContainerRuntimeSettings{}
+	settingsExist := false
+
+	if spec.TerminationGracePeriodSeconds != nil {
+		settingsExist = true
+		settings.TerminationGracePeriodSeconds = strconv.FormatInt(int64(*spec.TerminationGracePeriodSeconds), 10)
+	}
+	for _, hostAlias := range spec.HostAliases {
+		settingsExist = true
+		ha := workload_models.V1HostAlias{IP: hostAlias.IP, Hostnames: hostAlias.Hostnames}
+		settings.HostAliases = append(settings.HostAliases, &ha)
+	}
+	if spec.DNSConfig != nil {
+		settingsExist = true
+		options := []*workload_models.V1DNSConfigOption{}
+		for _, option := range spec.DNSConfig.Options {
+			o := workload_models.V1DNSConfigOption{Name: option.Name}
+			if option.Value != nil {
+				o.Value = *option.Value
+			}
+			options = append(options, &o)
+		}
+		settings.DNSConfig = &workload_models.V1DNSConfig{
+			Nameservers: spec.DNSConfig.Nameservers,
+			Searches:    spec.DNSConfig.Searches,
+			Options:     options,
+		}
+	}
+	if spec.ShareProcessNamespace != nil {
+		settingsExist = true
+		settings.ShareProcessNamespace = *spec.ShareProcessNamespace
+	}
+
+	if settingsExist {
+		runtime.Containers = &settings
+	}
+
+	return &runtime
 }
 
 func (p *StackpathProvider) getVolumeClaimSpecFrom(spec *v1.CSIVolumeSource) (*workload_models.V1VolumeClaimSpec, error) {
@@ -124,6 +177,10 @@ func (p *StackpathProvider) getWorkloadVolumesFrom(pod *v1.Pod) ([]*workload_mod
 }
 
 func (p *StackpathProvider) getWorkloadContainersFrom(k8sContainers []v1.Container) (workload_models.V1ContainerSpecMapEntry, error) {
+	if len(k8sContainers) == 0 {
+		return nil, nil
+	}
+
 	containers := make(workload_models.V1ContainerSpecMapEntry)
 	for _, k8sContainer := range k8sContainers {
 		container, err := p.getWorkloadContainerSpecFrom(&k8sContainer)
@@ -186,27 +243,134 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 		return nil, err
 	}
 
+	startupProbe, err := p.getWorkloadContainerProbeFrom(k8sContainer.StartupProbe, k8sContainer.Ports)
+	if err != nil {
+		return nil, err
+	}
+
 	k8sCommand := k8sContainer.Command
 	k8sArgs := k8sContainer.Args
 	if len(k8sArgs) != 0 {
 		if len(k8sCommand) == 0 {
 			return nil, fmt.Errorf("failed to create workload from pod. args not supported without command")
 		}
-		k8sCommand = append(k8sCommand, k8sArgs...)
+	}
+
+	imagePullPolicy := p.getWorkloadContainerImagePullPolicyFrom(k8sContainer.ImagePullPolicy)
+
+	lifecycle, err := p.getWorkloadContainerLifecycle(k8sContainer)
+	if err != nil {
+		return nil, err
 	}
 
 	workloadContainerSpec := workload_models.V1ContainerSpec{
-		Image:          k8sContainer.Image,
-		Command:        k8sCommand,
-		Ports:          ports,
-		Env:            env,
-		Resources:      resources,
-		VolumeMounts:   volumeMounts,
-		LivenessProbe:  livenessProbe,
-		ReadinessProbe: readinessProbe,
+		Image:           k8sContainer.Image,
+		Command:         k8sContainer.Command,
+		Args:            k8sContainer.Args,
+		Ports:           ports,
+		Env:             env,
+		Resources:       resources,
+		VolumeMounts:    volumeMounts,
+		LivenessProbe:   livenessProbe,
+		ReadinessProbe:  readinessProbe,
+		ImagePullPolicy: imagePullPolicy,
+		WorkingDir:      k8sContainer.WorkingDir,
+		Lifecycle:       lifecycle,
+		StartupProbe:    startupProbe,
+	}
+
+	if k8sContainer.TerminationMessagePath != "" {
+		workloadContainerSpec.TerminationMessagePath = k8sContainer.TerminationMessagePath
+	}
+	if k8sContainer.TerminationMessagePolicy != "" {
+		switch k8sContainer.TerminationMessagePolicy {
+		case v1.TerminationMessageReadFile:
+			workloadContainerSpec.TerminationMessagePolicy = workload_models.NewV1ContainerTerminationMessagePolicy(workload_models.V1ContainerTerminationMessagePolicyFILE)
+		case v1.TerminationMessageFallbackToLogsOnError:
+			workloadContainerSpec.TerminationMessagePolicy = workload_models.NewV1ContainerTerminationMessagePolicy(workload_models.V1ContainerTerminationMessagePolicyFALLBACKTOLOGSONERROR)
+		}
 	}
 
 	return &workloadContainerSpec, nil
+}
+
+func (p *StackpathProvider) getWorkloadContainerLifecycle(container *v1.Container) (*workload_models.V1ContainerLifecycle, error) {
+	if container.Lifecycle == nil || *container.Lifecycle == (v1.Lifecycle{}) {
+		return nil, nil
+	}
+
+	postStart, err := p.getContainerLifecycleHandlerFrom(container.Lifecycle.PostStart, container.Ports)
+	if err != nil {
+		return nil, err
+	}
+	preStop, err := p.getContainerLifecycleHandlerFrom(container.Lifecycle.PreStop, container.Ports)
+	if err != nil {
+		return nil, err
+	}
+	if postStart == nil && preStop == nil {
+		return nil, nil
+	}
+	lifecycle := workload_models.V1ContainerLifecycle{}
+	if postStart != nil {
+		lifecycle.PostStart = postStart
+	}
+	if preStop != nil {
+		lifecycle.PreStop = preStop
+	}
+	return &lifecycle, nil
+}
+
+func (p *StackpathProvider) getContainerLifecycleHandlerFrom(k8sLifecycleHandler *v1.LifecycleHandler, k8sPorts []v1.ContainerPort) (*workload_models.V1ContainerLifecycleHandler, error) {
+	if k8sLifecycleHandler == nil || *k8sLifecycleHandler == (v1.LifecycleHandler{}) {
+		return nil, nil
+	}
+
+	if k8sLifecycleHandler.Exec != nil {
+		p.logger.Info("exec container lifecycle is not supported, skipping")
+		return nil, nil
+	}
+
+	handler := workload_models.V1ContainerLifecycleHandler{}
+	var port int32 = 0
+	var err error
+
+	if k8sLifecycleHandler.HTTPGet != nil {
+		port, err = getPortValue(k8sLifecycleHandler.HTTPGet.Port, k8sPorts)
+		if err != nil {
+			return nil, err
+		}
+		httpGetAction := &workload_models.V1HTTPGetAction{
+			HTTPHeaders: p.getHTTPHeadersFrom(k8sLifecycleHandler.HTTPGet.HTTPHeaders),
+			Path:        k8sLifecycleHandler.HTTPGet.Path,
+			Port:        port,
+			Scheme:      string(k8sLifecycleHandler.HTTPGet.Scheme),
+		}
+		handler.HTTPGet = httpGetAction
+	}
+	if k8sLifecycleHandler.TCPSocket != nil {
+		port, err = getPortValue(k8sLifecycleHandler.TCPSocket.Port, k8sPorts)
+		if err != nil {
+			return nil, err
+		}
+		handler.TCPSocket = &workload_models.V1TCPSocketAction{Port: port}
+	}
+
+	return &handler, nil
+}
+
+func (p *StackpathProvider) getWorkloadContainerImagePullPolicyFrom(containerImagePolicy v1.PullPolicy) *workload_models.V1ContainerImagePullPolicy {
+	if containerImagePolicy == "" {
+		return nil
+	}
+	switch containerImagePolicy {
+	case v1.PullAlways:
+		return workload_models.V1ContainerImagePullPolicyALWAYS.Pointer()
+	case v1.PullIfNotPresent:
+		return workload_models.V1ContainerImagePullPolicyIFNOTPRESENT.Pointer()
+	}
+
+	p.logger.Warnf("'%s' container image pull policy is not supported, skipping", containerImagePolicy)
+	return nil
 }
 
 func (p *StackpathProvider) getWorkloadContainerPortsFrom(k8sPorts []v1.ContainerPort) workload_models.V1InstancePortMapEntry {
@@ -356,7 +520,7 @@ func (p *StackpathProvider) getWorkloadContainerVolumeMountsFrom(k8sVolumeMounts
 	return workloadVolumeMounts
 }
 
-func (p *StackpathProvider) getProbeHTTPHeadersFrom(httpHeaders []v1.HTTPHeader) workload_models.V1StringMapEntry {
+func (p *StackpathProvider) getHTTPHeadersFrom(httpHeaders []v1.HTTPHeader) workload_models.V1StringMapEntry {
 	httpHeadersToReturn := workload_models.V1StringMapEntry{}
 	for _, header := range httpHeaders {
 		httpHeadersToReturn[header.Name] = header.Value
@@ -397,7 +561,7 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 			Path:        k8sProbe.HTTPGet.Path,
 			Port:        port,
 			Scheme:      string(k8sProbe.HTTPGet.Scheme),
-			HTTPHeaders: p.getProbeHTTPHeadersFrom(k8sProbe.HTTPGet.HTTPHeaders),
+			HTTPHeaders: p.getHTTPHeadersFrom(k8sProbe.HTTPGet.HTTPHeaders),
 		}
 	}
 

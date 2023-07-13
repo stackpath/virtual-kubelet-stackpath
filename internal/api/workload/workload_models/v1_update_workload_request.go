@@ -13,7 +13,7 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// V1UpdateWorkloadRequest v1 update workload request
+// V1UpdateWorkloadRequest A request to update a workload
 //
 // swagger:model v1UpdateWorkloadRequest
 type V1UpdateWorkloadRequest struct {

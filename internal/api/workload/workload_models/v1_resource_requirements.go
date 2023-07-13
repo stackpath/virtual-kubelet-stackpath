@@ -13,9 +13,13 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// V1ResourceRequirements Resource requirements for an object
+// V1ResourceRequirements Resource requirements are key/value pairs.
 //
-// Resource requirements are key/value pairs.
+// Resource requirements for an object. The values supported by workloads are:
+// - cpu
+// - memory
+// - nvidia-a16: limited to specific markets
+// - ephemeral-storage: deprecated and has no effect
 //
 // swagger:model v1ResourceRequirements
 type V1ResourceRequirements struct {
