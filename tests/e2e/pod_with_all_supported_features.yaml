@@ -4,14 +4,40 @@ metadata:
   name: webserver
   namespace: vk-sp
 spec:
+  shareProcessNamespace: true
+  hostAliases:
+    - ip: "127.0.0.1"
+      hostnames:
+        - "foo.local"
+        - "bar.local"
+    - ip: "10.1.2.3"
+      hostnames:
+        - "foo.remote"
+        - "bar.remote"
+  dnsConfig:
+    nameservers:
+      - 192.0.2.1
+    searches:
+      - ns1.svc.cluster-domain.example
+      - my.dns.search.suffix
+    options:
+      - name: ndots
+        value: "2"
+
+  initContainers:
+    - name: init-container
+      image: busybox:1.28
+      command: ["sh", "-c"]
+      args: ["echo hello there!;sleep 60;"]
+
   containers:
     - name: webserver
       image: nginx:latest
+      command:
+        - "nginx"
       args:
         - "-d"
         - "something"
-      command:
-        - "nginx"
       ports:
         - name: http
           containerPort: 80
@@ -31,6 +57,14 @@ spec:
       volumeMounts:
         - mountPath: "/disk-1"
           name: volume-1
+      startupProbe:
+        initialDelaySeconds: 1
+        periodSeconds: 5
+        timeoutSeconds: 1
+        successThreshold: 1
+        failureThreshold: 1
+        tcpSocket:
+          port: 80
       livenessProbe:
         tcpSocket:
           port: 80
@@ -48,6 +82,29 @@ spec:
         successThreshold: 2
         timeoutSeconds: 10
         failureThreshold: 1
+
+      #exec hook is not supported yet
+      lifecycle:
+        preStart:
+          httpGet:
+            port: 80
+            path: shutdown
+        # postStart hook has to be only used when it is expected that the container will be started immediately.
+        # The hook is failing in most cases with httpGet/tcpSocket action handlers as hook is triggered immediately
+        # after container is created and most of the container applications does not start listening by that time.
+        # postStart:
+        #   httpGet:
+        #     httpHeaders:
+        #       - name: "Content-type"
+        #         value: "application/json"
+        #     path: /
+        #     port: 80
+        #     scheme: HTTP
+
+      imagePullPolicy: "Always"
+      workingDir: "/"
+      terminationMessagePath: "/var/log/nginx/error.log"
+      terminationMessagePolicy: "File"
 
   volumes:
     - name: volume-1

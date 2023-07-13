@@ -9,6 +9,14 @@ spec:
       image: nginx:latest
       ports:
         - containerPort: 80
+      startupProbe:
+        initialDelaySeconds: 1
+        periodSeconds: 5
+        timeoutSeconds: 1
+        successThreshold: 1
+        failureThreshold: 1
+        tcpSocket:
+          port: 80
       livenessProbe:
         tcpSocket:
           port: 80

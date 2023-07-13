@@ -31,6 +31,7 @@ Here are the specifications for each of the available instance types:
 - **Limited Kubernetes features**. The provider only supports some of the Kubernetes pod specification as supported by the StackPath edge compute platform, there may be some advanced features that are not yet supported or that require additional configuration. **The provider will ignore any specification that aren't supported when creating the StackPath workload**.
 In addition, the workloads created on the StackPath platform will not have network access to the Kubernetes API or any pods running in nodes that aren't in the virtual kubelet provider.
 - **Pod name length**. The provider is subject to the limitations of StackPath's workload slugs, which are limited to 63 characters. The provider constructs the slug by concatenating the namespace with the pod name separated by a dash. It is important to ensure that this string does not exceed 63 characters, as exceeding this limit will prevent the pod from being created.
+- **Lifecycle's PostStart**. The `postStart` hook in the lifecycle should only be used when the container is expected to start immediately. However, in most cases, this hook fails when using `httpGet` and `tcpSocket` action handlers because it is triggered immediately after the container is created, and many container applications do not start listening at that time. In a future release, we plan to support the `exec` action handler, which should be useful for the `postStart` hook.
 
 ## Getting Started
 
