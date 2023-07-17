@@ -396,7 +396,7 @@ func (p *StackpathProvider) getContainerLifecycleHandlerFrom(k8sLifecycleHandler
 	}
 
 	if k8sLifecycleHandler.Exec != nil {
-		p.logger.Info("exec container lifecycle is not supported, skipping")
+		p.logger.Warn("exec container lifecycle is not supported, skipping")
 		return nil, nil
 	}
 
@@ -605,12 +605,12 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 	}
 
 	if k8sProbe.GRPC != nil {
-		p.logger.Infof("probe of type GRPC is not supported, skipping")
+		p.logger.Warn("probe of type GRPC is not supported, skipping")
 		return nil, nil
 	}
 
 	if k8sProbe.Exec != nil {
-		p.logger.Info("probe of type Exec is not supported, skipping")
+		p.logger.Warn("probe of type Exec is not supported, skipping")
 		return nil, nil
 	}
 
