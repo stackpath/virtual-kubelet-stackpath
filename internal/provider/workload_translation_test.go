@@ -363,6 +363,80 @@ func TestContainerLifecycle(t *testing.T) {
 	}
 }
 
+func TestContainerSecurityContext(t *testing.T) {
+	ctx := context.Background()
+
+	var testInt64 int64 = 60
+	var testBool = true
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	var tests = []struct {
+		description        string
+		k8sSecurityContext *v1.SecurityContext
+		expected           *workload_models.V1ContainerSecurityContext
+		err                error
+	}{
+		{
+			description:        "no container security context returned for security context that is nil",
+			k8sSecurityContext: nil,
+			expected:           nil,
+		},
+		{
+			description:        "no container security context returned for empty security context",
+			k8sSecurityContext: &v1.SecurityContext{},
+			expected:           nil,
+		},
+		{
+			description: "successfully translate all supported fields",
+			k8sSecurityContext: &v1.SecurityContext{
+				RunAsUser:                &testInt64,
+				RunAsGroup:               &testInt64,
+				RunAsNonRoot:             &testBool,
+				ReadOnlyRootFilesystem:   &testBool,
+				AllowPrivilegeEscalation: &testBool,
+				Capabilities: &v1.Capabilities{
+					Add:  []v1.Capability{"add1", "add2"},
+					Drop: []v1.Capability{"drop1", "drop2"},
+				},
+			},
+			expected: &workload_models.V1ContainerSecurityContext{
+				RunAsUser:                strconv.Itoa(int(testInt64)),
+				RunAsGroup:               strconv.Itoa(int(testInt64)),
+				RunAsNonRoot:             testBool,
+				ReadOnlyRootFilesystem:   testBool,
+				AllowPrivilegeEscalation: testBool,
+				Capabilities: &workload_models.V1ContainerCapabilities{
+					Add:  []string{"add1", "add2"},
+					Drop: []string{"drop1", "drop2"},
+				},
+			},
+		},
+		{
+			description: "successfully translate with only 'RunAsUser' field set",
+			k8sSecurityContext: &v1.SecurityContext{
+				RunAsUser: &testInt64,
+			},
+			expected: &workload_models.V1ContainerSecurityContext{
+				RunAsUser: strconv.Itoa(int(testInt64)),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			containerSecurityContext := provider.getWorkloadContainerSecurityContext(test.k8sSecurityContext)
+			if err != nil {
+				assert.Equal(t, test.err, err, test.description)
+			} else {
+				assert.Equal(t, test.expected, containerSecurityContext, test.description)
+			}
+		})
+	}
+}
+
 func TestVolumeMounts(t *testing.T) {
 	ctx := context.Background()
 
@@ -1390,7 +1464,6 @@ func TestGetWorkloadFrom(t *testing.T) {
 						},
 					},
 					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
-					Runtime:              &workload_models.V1WorkloadInstanceRuntimeSettings{},
 				},
 				Targets: workload_models.V1TargetMapEntry{
 					"city-code": workload_models.V1Target{
@@ -1521,7 +1594,6 @@ func TestGetWorkloadFrom(t *testing.T) {
 						},
 					},
 					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
-					Runtime:              &workload_models.V1WorkloadInstanceRuntimeSettings{},
 				},
 				Targets: workload_models.V1TargetMapEntry{
 					"city-code": workload_models.V1Target{
@@ -1575,9 +1647,9 @@ func TestWorkloadRuntimeSettings(t *testing.T) {
 		len         int
 	}{
 		{
-			description: "empty pod return ok without runtime settings",
+			description: "empty podspec return ok without runtime settings",
 			pod:         v1.Pod{},
-			expected:    &workload_models.V1WorkloadInstanceRuntimeSettings{},
+			expected:    nil,
 		},
 		{
 			description: "successfully translate all runtime settings",
@@ -1694,6 +1766,40 @@ func TestWorkloadRuntimeSettings(t *testing.T) {
 			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
 				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
 					TerminationGracePeriodSeconds: strconv.Itoa(int(testInt64)),
+				},
+			},
+		},
+		{
+			description: "nil in podspec's security context is ignored",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					SecurityContext: nil,
+				},
+			},
+			expected: nil,
+		},
+		{
+			description: "successfully translates podspec's security context into workload's instance security context",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					SecurityContext: &v1.PodSecurityContext{
+						RunAsUser:          &testInt64,
+						RunAsGroup:         &testInt64,
+						RunAsNonRoot:       &testBool,
+						SupplementalGroups: []int64{123, 456},
+						Sysctls:            []v1.Sysctl{{Name: "test", Value: "value"}},
+					},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					SecurityContext: &workload_models.V1WorkloadInstanceSecurityContext{
+						RunAsUser:          strconv.Itoa(int(testInt64)),
+						RunAsGroup:         strconv.Itoa(int(testInt64)),
+						RunAsNonRoot:       testBool,
+						SupplementalGroups: []string{"123", "456"},
+						Sysctls:            []*workload_models.V1Sysctl{{Name: "test", Value: "value"}},
+					},
 				},
 			},
 		},

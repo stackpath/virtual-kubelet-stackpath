@@ -82,6 +82,32 @@ func (p *StackpathProvider) getWorkloadSpecFrom(pod *v1.Pod) (*workload_models.V
 	return &spec, nil
 }
 
+func (p *StackpathProvider) getWorkloadInstanceSecurityContext(context *v1.PodSecurityContext) *workload_models.V1WorkloadInstanceSecurityContext {
+	sc := workload_models.V1WorkloadInstanceSecurityContext{}
+	if context.RunAsUser != nil {
+		sc.RunAsUser = strconv.FormatInt(*context.RunAsUser, 10)
+	}
+	if context.RunAsGroup != nil {
+		sc.RunAsGroup = strconv.FormatInt(*context.RunAsGroup, 10)
+	}
+	if context.RunAsNonRoot != nil {
+		sc.RunAsNonRoot = *context.RunAsNonRoot
+	}
+
+	sc.SupplementalGroups = make([]string, 0)
+	for _, v := range context.SupplementalGroups {
+		sc.SupplementalGroups = append(sc.SupplementalGroups, strconv.FormatInt(v, 10))
+	}
+	for _, v := range context.Sysctls {
+		sc.Sysctls = append(sc.Sysctls, &workload_models.V1Sysctl{
+			Name:  v.Name,
+			Value: v.Value,
+		})
+	}
+
+	return &sc
+}
+
 func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *workload_models.V1WorkloadInstanceRuntimeSettings {
 
 	runtime := workload_models.V1WorkloadInstanceRuntimeSettings{}
@@ -90,7 +116,7 @@ func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *wor
 
 	if spec.TerminationGracePeriodSeconds != nil {
 		settingsExist = true
-		settings.TerminationGracePeriodSeconds = strconv.FormatInt(int64(*spec.TerminationGracePeriodSeconds), 10)
+		settings.TerminationGracePeriodSeconds = strconv.FormatInt(*spec.TerminationGracePeriodSeconds, 10)
 	}
 	for _, hostAlias := range spec.HostAliases {
 		settingsExist = true
@@ -118,8 +144,15 @@ func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *wor
 		settings.ShareProcessNamespace = *spec.ShareProcessNamespace
 	}
 
+	if spec.SecurityContext != nil {
+		settingsExist = true
+		settings.SecurityContext = p.getWorkloadInstanceSecurityContext(spec.SecurityContext)
+	}
+
 	if settingsExist {
 		runtime.Containers = &settings
+	} else {
+		return nil
 	}
 
 	return &runtime
@@ -263,6 +296,8 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 		return nil, err
 	}
 
+	securityContext := p.getWorkloadContainerSecurityContext(k8sContainer.SecurityContext)
+
 	workloadContainerSpec := workload_models.V1ContainerSpec{
 		Image:           k8sContainer.Image,
 		Command:         k8sContainer.Command,
@@ -277,6 +312,7 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 		WorkingDir:      k8sContainer.WorkingDir,
 		Lifecycle:       lifecycle,
 		StartupProbe:    startupProbe,
+		SecurityContext: securityContext,
 	}
 
 	if k8sContainer.TerminationMessagePath != "" {
@@ -292,6 +328,40 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 	}
 
 	return &workloadContainerSpec, nil
+}
+
+func (p *StackpathProvider) getWorkloadContainerSecurityContext(context *v1.SecurityContext) *workload_models.V1ContainerSecurityContext {
+	if context == nil || *context == (v1.SecurityContext{}) {
+		return nil
+	}
+
+	sc := workload_models.V1ContainerSecurityContext{}
+	if context.RunAsUser != nil {
+		sc.RunAsUser = strconv.FormatInt(*context.RunAsUser, 10)
+	}
+	if context.RunAsGroup != nil {
+		sc.RunAsGroup = strconv.FormatInt(*context.RunAsGroup, 10)
+	}
+	if context.RunAsNonRoot != nil {
+		sc.RunAsNonRoot = *context.RunAsNonRoot
+	}
+	if context.ReadOnlyRootFilesystem != nil {
+		sc.ReadOnlyRootFilesystem = *context.ReadOnlyRootFilesystem
+	}
+	if context.AllowPrivilegeEscalation != nil {
+		sc.AllowPrivilegeEscalation = *context.AllowPrivilegeEscalation
+	}
+	if context.Capabilities != nil {
+		sc.Capabilities = &workload_models.V1ContainerCapabilities{}
+		for _, v := range context.Capabilities.Add {
+			sc.Capabilities.Add = append(sc.Capabilities.Add, string(v))
+		}
+		for _, v := range context.Capabilities.Drop {
+			sc.Capabilities.Drop = append(sc.Capabilities.Drop, string(v))
+		}
+	}
+
+	return &sc
 }
 
 func (p *StackpathProvider) getWorkloadContainerLifecycle(container *v1.Container) (*workload_models.V1ContainerLifecycle, error) {
