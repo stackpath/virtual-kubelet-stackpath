@@ -30,12 +30,8 @@ spec:
     runAsNonRoot: true
     supplementalGroups: [100, 200]
     sysctls:
-      - name: kernel.shm_rmid_forced
-        value: "0"
       - name: net.core.somaxconn
         value: "1024"
-      - name: kernel.msgmax
-        value: "65536"
 
   initContainers:
     - name: init-container
@@ -45,7 +41,7 @@ spec:
 
   containers:
     - name: webserver
-      image: nginx:latest
+      image: nginxinc/nginx-unprivileged:latest
       command:
         - "nginx"
       args:
