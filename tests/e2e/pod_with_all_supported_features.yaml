@@ -24,6 +24,19 @@ spec:
       - name: ndots
         value: "2"
 
+  securityContext:
+    runAsUser: 2000
+    runAsGroup: 3000
+    runAsNonRoot: true
+    supplementalGroups: [100, 200]
+    sysctls:
+      - name: kernel.shm_rmid_forced
+        value: "0"
+      - name: net.core.somaxconn
+        value: "1024"
+      - name: kernel.msgmax
+        value: "65536"
+
   initContainers:
     - name: init-container
       image: busybox:1.28
@@ -53,6 +66,15 @@ spec:
         limits:
           memory: "4Gi"
           cpu: "2"
+
+      securityContext:
+        runAsUser: 2000
+        runAsGroup: 3000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: true
+        capabilities:
+          add: ["NET_ADMIN"]
+          drop: ["LINUX_IMMUTABLE"]
 
       volumeMounts:
         - mountPath: "/disk-1"
