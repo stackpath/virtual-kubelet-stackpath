@@ -33,6 +33,48 @@ In addition, the workloads created on the StackPath platform will not have netwo
 - **Pod name length**. The provider is subject to the limitations of StackPath's workload slugs, which are limited to 63 characters. The provider constructs the slug by concatenating the namespace with the pod name separated by a dash. It is important to ensure that this string does not exceed 63 characters, as exceeding this limit will prevent the pod from being created.
 - **Limited container lifecycle hook handlers**. The provider currently only supports the `httpGet` and `tcpSocket` hook handler implementations.
 
+## Supported PodSpec File Fields
+The following is a comprehensive list of supported fields in the PodSpec file when using StackPath's Virtual Kubelet Provider for Edge Compute.
+
+### Pod Configuration Fields
+
+- **shareProcessNamespace**: Allows multiple containers in a pod to share the same process namespace.
+- **hostAliases**: Specifies custom host-to-IP mappings for the pod.
+- **dnsConfig**: Configures DNS settings for the pod.
+- **securityContext**: Defines security-related settings for the containers in the pod, including permissions and access levels.
+  - **runAsUser**: Specifies the user ID that runs the container.
+  - **runAsGroup**: Specifies the primary group ID of the container.
+  - **runAsNonRoot**: Ensures that the container is not run as root.
+  - **supplementalGroups**: Lists additional group IDs applied to the container.
+  - **sysctls**: Configures kernel parameters for the container.
+- **containers**: Specifies the main containers in the pod.
+  - **name**: Specifies the name of the container.
+  - **image**: Specifies the container image.
+  - **command**: Specifies the command to be run in the container.
+  - **args**: Specifies the arguments to be passed to the container command.
+  - **ports**: Configures ports for the container.
+  - **env**: Sets environment variables for the container.
+  - **resources**: Specifies the resource requirements and limits for the container.
+  - **securityContext** (Container-specific):
+    - **runAsUser**: Specifies the user ID that runs the container.
+    - **runAsGroup**: Specifies the primary group ID of the container.
+    - **runAsNonRoot**: Ensures that the container is not run as root.
+    - **allowPrivilegeEscalation**: Allows privilege escalation for the container.
+    - **capabilities**: Specifies Linux capabilities for the container.
+  - **volumeMounts**: Mounts volumes into the container.
+  - **startupProbe**: Configures the startup probe for the container (excluding exec handler).
+  - **livenessProbe**: Configures the liveness probe for the container (excluding exec handler).
+  - **readinessProbe**: Configures the readiness probe for the container (excluding exec handler).
+  - **lifecycle**:
+    - **preStart**: Executed before the container starts (excluding exec handler).
+    - **postStart**: Executed after the container starts (excluding exec handler).
+  - **imagePullPolicy**: Specifies when to pull the container image (only `Always` and `IfNotPresented` is supported)
+  - **workingDir**: Sets the working directory inside the container.
+  - **terminationMessagePath**: Specifies the path to the container termination message.
+  - **terminationMessagePolicy**: Specifies how the termination message should be populated.
+- **initContainers**: Defines one or more containers that should run before the main containers in the pod (supports same fields as **containers**)
+- **volumes**: Configures volumes to be used in the pod.
+
 ## Getting Started
 
 To use the StackPath Edge Computing Virtual Kubelet provider, you'll need to have the following prerequisites:
