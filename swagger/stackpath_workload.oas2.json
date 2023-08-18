@@ -1999,6 +1999,9 @@
         },
         "tcpSocket": {
           "$ref": "#/definitions/v1TCPSocketAction"
+        },
+        "exec": {
+          "$ref": "#/definitions/v1ExecAction"
         }
       },
       "title": "Defines a specific lifecycle management action that should be taken"
@@ -2341,6 +2344,19 @@
         }
       },
       "title": "The source for an environment variable"
+    },
+    "v1ExecAction": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Command to run in container through container exec"
+        }
+      },
+      "title": "Execute an command inside container through container exec for probes/lifecycle actions"
     },
     "v1GetImageResponse": {
       "type": "object",
@@ -2923,6 +2939,9 @@
         },
         "tcpSocket": {
           "$ref": "#/definitions/v1TCPSocketAction"
+        },
+        "exec": {
+          "$ref": "#/definitions/v1ExecAction"
         },
         "initialDelaySeconds": {
           "type": "integer",

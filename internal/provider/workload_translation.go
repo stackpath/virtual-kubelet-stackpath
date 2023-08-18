@@ -395,11 +395,6 @@ func (p *StackpathProvider) getContainerLifecycleHandlerFrom(k8sLifecycleHandler
 		return nil, nil
 	}
 
-	if k8sLifecycleHandler.Exec != nil {
-		p.logger.Warn("exec container lifecycle is not supported, skipping")
-		return nil, nil
-	}
-
 	handler := workload_models.V1ContainerLifecycleHandler{}
 	var port int32 = 0
 	var err error
@@ -423,6 +418,9 @@ func (p *StackpathProvider) getContainerLifecycleHandlerFrom(k8sLifecycleHandler
 			return nil, err
 		}
 		handler.TCPSocket = &workload_models.V1TCPSocketAction{Port: port}
+	}
+	if k8sLifecycleHandler.Exec != nil {
+		handler.Exec = &workload_models.V1ExecAction{Command: k8sLifecycleHandler.Exec.Command}
 	}
 
 	return &handler, nil
@@ -609,11 +607,6 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 		return nil, nil
 	}
 
-	if k8sProbe.Exec != nil {
-		p.logger.Warn("probe of type Exec is not supported, skipping")
-		return nil, nil
-	}
-
 	probe := &workload_models.V1Probe{
 		FailureThreshold:    k8sProbe.FailureThreshold,
 		InitialDelaySeconds: k8sProbe.InitialDelaySeconds,
@@ -643,6 +636,11 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 		probe.TCPSocket = &workload_models.V1TCPSocketAction{
 			Port: port,
 		}
+	}
+	p.logger.Info("??????")
+	if k8sProbe.Exec != nil {
+		p.logger.Info("!!!!!!!!!!!!!")
+		probe.Exec = &workload_models.V1ExecAction{Command: k8sProbe.Exec.Command}
 	}
 
 	return probe, nil

@@ -18,6 +18,9 @@ import (
 // swagger:model v1ContainerLifecycleHandler
 type V1ContainerLifecycleHandler struct {
 
+	// exec
+	Exec *V1ExecAction `json:"exec,omitempty"`
+
 	// http get
 	HTTPGet *V1HTTPGetAction `json:"httpGet,omitempty"`
 
@@ -28,6 +31,10 @@ type V1ContainerLifecycleHandler struct {
 // Validate validates this v1 container lifecycle handler
 func (m *V1ContainerLifecycleHandler) Validate(formats strfmt.Registry) error {
 	var res []error
+
+	if err := m.validateExec(formats); err != nil {
+		res = append(res, err)
+	}
 
 	if err := m.validateHTTPGet(formats); err != nil {
 		res = append(res, err)
@@ -40,6 +47,25 @@ func (m *V1ContainerLifecycleHandler) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *V1ContainerLifecycleHandler) validateExec(formats strfmt.Registry) error {
+	if swag.IsZero(m.Exec) { // not required
+		return nil
+	}
+
+	if m.Exec != nil {
+		if err := m.Exec.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("exec")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("exec")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -85,6 +111,10 @@ func (m *V1ContainerLifecycleHandler) validateTCPSocket(formats strfmt.Registry)
 func (m *V1ContainerLifecycleHandler) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.contextValidateExec(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateHTTPGet(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -96,6 +126,22 @@ func (m *V1ContainerLifecycleHandler) ContextValidate(ctx context.Context, forma
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *V1ContainerLifecycleHandler) contextValidateExec(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Exec != nil {
+		if err := m.Exec.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("exec")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("exec")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 

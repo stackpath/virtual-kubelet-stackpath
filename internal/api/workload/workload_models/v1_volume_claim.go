@@ -32,6 +32,7 @@ type V1VolumeClaim struct {
 	Name string `json:"name,omitempty"`
 
 	// phase
+	// Read Only: true
 	Phase *VolumeClaimVolumeClaimPhase `json:"phase,omitempty"`
 
 	// A volume claim's programmatic name

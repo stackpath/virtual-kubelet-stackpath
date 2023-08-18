@@ -196,7 +196,11 @@ func TestProbe(t *testing.T) {
 					},
 				},
 			},
-			expectedSPProbe: nil,
+			expectedSPProbe: &workload_models.V1Probe{
+				Exec: &workload_models.V1ExecAction{
+					Command: []string{"some", "command"},
+				},
+			},
 		},
 		{
 			description: "unsupported grpc probe returns nil",
@@ -284,18 +288,29 @@ func TestContainerLifecycle(t *testing.T) {
 			err:               fmt.Errorf("unable to find named port: http"),
 		},
 		{
-			description: "exec lifecycle handler is not supported",
+			description: "lifecycle with exec action",
 			k8sContainer: &v1.Container{
 				Lifecycle: &v1.Lifecycle{
 					PostStart: &v1.LifecycleHandler{
 						Exec: &v1.ExecAction{
-							Command: []string{"test"},
+							Command: []string{"post-start-command"},
+						},
+					},
+					PreStop: &v1.LifecycleHandler{
+						Exec: &v1.ExecAction{
+							Command: []string{"pre-start-command"},
 						},
 					},
 				},
 			},
-			expectedLifecycle: nil,
-			err:               nil,
+			expectedLifecycle: &workload_models.V1ContainerLifecycle{
+				PostStart: &workload_models.V1ContainerLifecycleHandler{
+					Exec: &workload_models.V1ExecAction{Command: []string{"post-start-command"}},
+				},
+				PreStop: &workload_models.V1ContainerLifecycleHandler{
+					Exec: &workload_models.V1ExecAction{Command: []string{"pre-start-command"}}},
+			},
+			err: nil,
 		},
 		{
 			description: "post start lifecycle",

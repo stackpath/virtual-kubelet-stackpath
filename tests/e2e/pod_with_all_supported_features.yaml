@@ -84,6 +84,9 @@ spec:
         tcpSocket:
           port: 80
       livenessProbe:
+        exec:
+          command:
+            - uname
         tcpSocket:
           port: 80
         initialDelaySeconds: 5
@@ -101,9 +104,11 @@ spec:
         timeoutSeconds: 10
         failureThreshold: 1
 
-      #exec hook is not supported yet
       lifecycle:
-        preStart:
+        preStop:
+          exec:
+            command:
+              - uname
           httpGet:
             port: 80
             path: shutdown
