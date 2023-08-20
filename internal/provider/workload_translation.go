@@ -637,9 +637,7 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 			Port: port,
 		}
 	}
-	p.logger.Info("??????")
 	if k8sProbe.Exec != nil {
-		p.logger.Info("!!!!!!!!!!!!!")
 		probe.Exec = &workload_models.V1ExecAction{Command: k8sProbe.Exec.Command}
 	}
 
