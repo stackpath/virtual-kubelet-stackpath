@@ -15,7 +15,7 @@ This feature enables you to use the Kubernetes control plane to create and manag
 
 ## Limitations
 
-- **Limited instance types**. StackPath Edge Compute product currently supports five instance types: SP-1 through SP-5 ([SP// Containers](https://www.stackpath.com/products/containers/)). The provider will launch the smallest instance that provides the resources defined in the pod specification. If the pod specification requires more resources than what is available in the SP-5 instance, the provider will provision the SP-5 instance type.
+- **Limited instance types**. StackPath Edge Compute product currently supports five instance types: SP-1 through SP-8 ([SP// Containers](https://www.stackpath.com/products/containers/)). The provider will launch the smallest instance that provides the resources defined in the pod specification. If the pod specification requires more resources than what is available in the SP-8 instance, the provider will provision the SP-8 instance type.
 Here are the specifications for each of the available instance types:
 
     | Subscription | Cores | RAM  |
@@ -25,6 +25,9 @@ Here are the specifications for each of the available instance types:
     | SP-3 | 2 | 8GB  |
     | SP-4 | 4 | 16GB |
     | SP-5 | 8 | 32GB |
+    | SP-6 | 16 | 64GB |
+    | SP-7 | 32 | 128GB |
+    | SP-8 | 48 | 256GB |
 
 - **Limited network control**. The provider currently does not support custom network settings for the StackPath workload. The workload will run with a public and private IP, and network policies must be created separately.
 - **Limited probe support**. The provider currently only supports the `httpGet`, `tcpSocket` and `exec` probe types for startup, liveness and readiness checks. `grpc` probe type is not currently supported.

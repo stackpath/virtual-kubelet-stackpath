@@ -505,7 +505,7 @@ func (p *StackpathProvider) getWorkloadContainerResourcesFrom(k8sResource v1.Res
 
 }
 
-// toSPInstanceSize replaces the resource allocation requests to one of the 5 supported instance sizes provided by SP
+// toSPInstanceSize replaces the resource allocation requests to one of the 8 supported instance sizes provided by SP
 func toSPInstanceSize(k8sResource v1.ResourceRequirements) workload_models.V1StringMapEntry {
 	var requestCPU, requestMEM, limitCPU, limitMEM *resource.Quantity
 
@@ -513,10 +513,16 @@ func toSPInstanceSize(k8sResource v1.ResourceRequirements) workload_models.V1Str
 	mem4Gi := resource.NewQuantity(4*oneGi, resource.BinarySI)
 	mem8Gi := resource.NewQuantity(8*oneGi, resource.BinarySI)
 	mem16Gi := resource.NewQuantity(16*oneGi, resource.BinarySI)
+	mem32Gi := resource.NewQuantity(32*oneGi, resource.BinarySI)
+	mem64Gi := resource.NewQuantity(64*oneGi, resource.BinarySI)
+	mem128Gi := resource.NewQuantity(128*oneGi, resource.BinarySI)
 
 	cpu1 := resource.NewQuantity(1, resource.DecimalSI)
 	cpu2 := resource.NewQuantity(2, resource.DecimalSI)
 	cpu4 := resource.NewQuantity(4, resource.DecimalSI)
+	cpu8 := resource.NewQuantity(8, resource.DecimalSI)
+	cpu16 := resource.NewQuantity(16, resource.DecimalSI)
+	cpu32 := resource.NewQuantity(32, resource.DecimalSI)
 
 	if k8sResource.Requests != nil {
 		requestCPU = k8sResource.Requests.Cpu()
@@ -539,7 +545,19 @@ func toSPInstanceSize(k8sResource v1.ResourceRequirements) workload_models.V1Str
 	cpu := maxResource(requestCPU, limitCPU)
 	mem := maxResource(requestMEM, limitMEM)
 
-	if cpu.Cmp(*cpu4) == 1 || mem.Cmp(*mem16Gi) == 1 {
+	if cpu.Cmp(*cpu32) == 1 || mem.Cmp(*mem128Gi) == 1 {
+		return containerResourcesSP8
+	}
+
+	if (cpu.Cmp(*cpu16) == 1 && cpu.Cmp(*cpu32) != 1) || (mem.Cmp(*mem64Gi) == 1 && mem.Cmp(*mem128Gi) != 1) {
+		return containerResourcesSP7
+	}
+
+	if (cpu.Cmp(*cpu8) == 1 && cpu.Cmp(*cpu16) != 1) || (mem.Cmp(*mem32Gi) == 1 && mem.Cmp(*mem64Gi) != 1) {
+		return containerResourcesSP6
+	}
+
+	if (cpu.Cmp(*cpu4) == 1 && cpu.Cmp(*cpu8) != 1) || (mem.Cmp(*mem16Gi) == 1 && mem.Cmp(*mem32Gi) != 1) {
 		return containerResourcesSP5
 	}
 

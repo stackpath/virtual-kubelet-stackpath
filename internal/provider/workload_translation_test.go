@@ -614,8 +614,23 @@ func TestInstanceSizes(t *testing.T) {
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource high memory result in sp-5",
-			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(24*1024*1024*1024, resource.BinarySI)}},
+			description:             "small cpu resource high memory result in sp-8",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(512*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP8,
+		},
+		{
+			description:             "small cpu resource memory fit for sp-7 result in sp-7",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(128*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP7,
+		},
+		{
+			description:             "small cpu resource memory fit for sp-6 result in sp-6",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(64*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "small cpu resource memory fit for sp-5 result in sp-5",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(32*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
@@ -644,8 +659,23 @@ func TestInstanceSizes(t *testing.T) {
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements with high cpu result in sp-5",
+			description:             "small memory resource requirements with high cpu result in sp-8",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(64, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP8,
+		},
+		{
+			description:             "small memory resource requirements with with cpu fit for sp-7 result in sp-7",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(32, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP7,
+		},
+		{
+			description:             "small memory resource requirements with with cpu fit for sp-6 result in sp-6",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(16, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "small memory resource requirements with with cpu fit for sp-5 result in sp-5",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
@@ -676,10 +706,10 @@ func TestInstanceSizes(t *testing.T) {
 		{
 			description: "requests and limits maximum calculated correctly",
 			k8sResourceRequirements: v1.ResourceRequirements{
-				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
+				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(48, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 				Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 			},
-			expectedResources: containerResourcesSP5,
+			expectedResources: containerResourcesSP8,
 		},
 	}
 	for _, test := range tests {
