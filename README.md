@@ -1,6 +1,6 @@
 # Virtual Kubelet Provider for StackPath Edge Compute
 
-StackPath's Virtual Kubelet (VK) provider allows you to leverage the power of Kubernetes (K8s) to deploy and manage your applications across StackPath's expansive Edge Compute network, increasing scalability and reliability, while decreasing latency.
+StackPath's Virtual Kubelet provider allows you to leverage the power of Kubernetes (K8s) to deploy and manage your applications across StackPath's expansive Edge Compute network, increasing scalability and reliability, while decreasing latency.
 
 This feature enables you to use the Kubernetes control plane to create and manage pods as you normally would, without having to worry about managing your own hardware and infrastructure, as StackPath's Virtual Kubelet provider takes care of scheduling these pods for you on our Edge Compute nodes.
 
