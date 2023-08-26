@@ -11,7 +11,7 @@ var (
 	containerResourcesSP5 = workload_models.V1StringMapEntry{"cpu": "8", "memory": "32Gi"}
 	containerResourcesSP6 = workload_models.V1StringMapEntry{"cpu": "16", "memory": "64Gi"}
 	containerResourcesSP7 = workload_models.V1StringMapEntry{"cpu": "32", "memory": "128Gi"}
-	containerResourcesSP8 = workload_models.V1StringMapEntry{"cpu": "64", "memory": "256Gi"}
+	containerResourcesSP8 = workload_models.V1StringMapEntry{"cpu": "48", "memory": "256Gi"}
 )
 
 const defaultK8sServiceAccountMountPath = "/var/run/secrets/kubernetes.io/serviceaccount"
