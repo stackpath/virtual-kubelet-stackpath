@@ -604,107 +604,112 @@ func TestInstanceSizes(t *testing.T) {
 		expectedResources       workload_models.V1StringMapEntry
 	}{
 		{
-			description:             "no resource requirements result in sp-1",
+			description:             "No resource requirements lead to SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource requirements without memory result in sp-1",
+			description:             "Low CPU resource requirement without memory leads to SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource high memory result in sp-8",
+			description:             "Low CPU resource with high memory requirement results in SP-8 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(512*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP8,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-7 result in sp-7",
+			description:             "Low CPU resource with 128GiB memory requirement fit for SP-7 results in SP-7 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(128*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP7,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-6 result in sp-6",
+			description:             "Low CPU resource with 64GiB memory requirement fit for SP-6 results in SP-6 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(64*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP6,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-5 result in sp-5",
+			description:             "Low CPU resource with 40GiB memory requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(40*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low CPU resource with 32GiB memory requirement fit for SP-5 results in SP-5 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(32*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-4 result in sp-4",
+			description:             "Low CPU resource with 10GiB memory requirement fit for SP-4 results in SP-4 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(10*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP4,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-3 result in sp-3",
+			description:             "Low CPU resource with 8GiB memory requirement fit for SP-3 results in SP-3 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(8*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-2 result in sp-2",
+			description:             "Low CPU resource with 4GiB memory requirement fit for SP-2 results in SP-2 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(4*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP2,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-1 result in sp-1",
+			description:             "Low CPU resource with 2GiB memory requirement fit for SP-1 results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(2*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements without cpu result in sp-1",
+			description:             "Low memory requirement without CPU requirement results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements with high cpu result in sp-8",
+			description:             "Low memory requirement with high CPU requirement results in SP-8 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(64, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP8,
 		},
 		{
-			description:             "small memory resource requirements with with cpu fit for sp-7 result in sp-7",
+			description:             "Low memory requirement with CPU requirement fit for SP-7 results in SP-7 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(32, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP7,
 		},
 		{
-			description:             "small memory resource requirements with with cpu fit for sp-6 result in sp-6",
+			description:             "Low memory requirement with CPU requirement fit for SP-6 results in SP-6 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(16, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP6,
 		},
 		{
-			description:             "small memory resource requirements with with cpu fit for sp-5 result in sp-5",
+			description:             "Low memory requirement with CPU requirement fit for SP-5 results in SP-5 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
-			description:             "small memory resource requirements with with cpu fit for sp-4 result in sp-4",
+			description:             "Low memory requirement with CPU requirement fit for SP-4 results in SP-4 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(4, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP4,
 		},
 		{
-			description:             "small memory resource requirements with cpu fit for sp-2 and sp-3 result in sp-2",
+			description:             "Low memory requirement with CPU requirement fit for SP-2 and SP-3 results in SP-2 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP2,
 		},
 		{
-			description:             "small memory resource requirements with cpu fit for sp-1 result in sp-1",
+			description:             "Low memory requirement with CPU requirement fit for SP-1 results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(1, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "cpu matching sp-2 and sp-3 with memory matching sp-3 results in sp-3",
+			description:             "Matching CPU requirement for SP-2 and SP-3 with memory matching SP-3 leads to SP-3 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description:             "using limits instead of requests works as well",
+			description:             "Using limits instead of requests produces the same result",
 			k8sResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description: "requests and limits maximum calculated correctly",
+			description: "Correct calculation for maximum requests and limits",
 			k8sResourceRequirements: v1.ResourceRequirements{
 				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(48, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 				Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
