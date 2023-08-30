@@ -19,6 +19,9 @@ import (
 // swagger:model v1ContainerSpec
 type V1ContainerSpec struct {
 
+	// Arguments to the container entry point
+	Args []string `json:"args"`
+
 	// The commands that start a container
 	Command []string `json:"command"`
 
@@ -27,6 +30,12 @@ type V1ContainerSpec struct {
 
 	// The location of a Docker image to run as a container
 	Image string `json:"image,omitempty"`
+
+	// image pull policy
+	ImagePullPolicy *V1ContainerImagePullPolicy `json:"imagePullPolicy,omitempty"`
+
+	// lifecycle
+	Lifecycle *V1ContainerLifecycle `json:"lifecycle,omitempty"`
 
 	// liveness probe
 	LivenessProbe *V1Probe `json:"livenessProbe,omitempty"`
@@ -40,8 +49,23 @@ type V1ContainerSpec struct {
 	// resources
 	Resources *V1ResourceRequirements `json:"resources,omitempty"`
 
+	// security context
+	SecurityContext *V1ContainerSecurityContext `json:"securityContext,omitempty"`
+
+	// startup probe
+	StartupProbe *V1Probe `json:"startupProbe,omitempty"`
+
+	// Mounted file path at which the container's termination message will be written
+	TerminationMessagePath string `json:"terminationMessagePath,omitempty"`
+
+	// termination message policy
+	TerminationMessagePolicy *V1ContainerTerminationMessagePolicy `json:"terminationMessagePolicy,omitempty"`
+
 	// Volumes to mount in the container
 	VolumeMounts []*V1InstanceVolumeMount `json:"volumeMounts"`
+
+	// Container's working directory
+	WorkingDir string `json:"workingDir,omitempty"`
 }
 
 // Validate validates this v1 container spec
@@ -49,6 +73,14 @@ func (m *V1ContainerSpec) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateEnv(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateImagePullPolicy(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateLifecycle(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -65,6 +97,18 @@ func (m *V1ContainerSpec) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateResources(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSecurityContext(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStartupProbe(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateTerminationMessagePolicy(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -89,6 +133,44 @@ func (m *V1ContainerSpec) validateEnv(formats strfmt.Registry) error {
 				return ve.ValidateName("env")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
 				return ce.ValidateName("env")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) validateImagePullPolicy(formats strfmt.Registry) error {
+	if swag.IsZero(m.ImagePullPolicy) { // not required
+		return nil
+	}
+
+	if m.ImagePullPolicy != nil {
+		if err := m.ImagePullPolicy.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("imagePullPolicy")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("imagePullPolicy")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) validateLifecycle(formats strfmt.Registry) error {
+	if swag.IsZero(m.Lifecycle) { // not required
+		return nil
+	}
+
+	if m.Lifecycle != nil {
+		if err := m.Lifecycle.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("lifecycle")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("lifecycle")
 			}
 			return err
 		}
@@ -173,6 +255,63 @@ func (m *V1ContainerSpec) validateResources(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *V1ContainerSpec) validateSecurityContext(formats strfmt.Registry) error {
+	if swag.IsZero(m.SecurityContext) { // not required
+		return nil
+	}
+
+	if m.SecurityContext != nil {
+		if err := m.SecurityContext.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("securityContext")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("securityContext")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) validateStartupProbe(formats strfmt.Registry) error {
+	if swag.IsZero(m.StartupProbe) { // not required
+		return nil
+	}
+
+	if m.StartupProbe != nil {
+		if err := m.StartupProbe.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("startupProbe")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("startupProbe")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) validateTerminationMessagePolicy(formats strfmt.Registry) error {
+	if swag.IsZero(m.TerminationMessagePolicy) { // not required
+		return nil
+	}
+
+	if m.TerminationMessagePolicy != nil {
+		if err := m.TerminationMessagePolicy.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("terminationMessagePolicy")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("terminationMessagePolicy")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *V1ContainerSpec) validateVolumeMounts(formats strfmt.Registry) error {
 	if swag.IsZero(m.VolumeMounts) { // not required
 		return nil
@@ -207,6 +346,14 @@ func (m *V1ContainerSpec) ContextValidate(ctx context.Context, formats strfmt.Re
 		res = append(res, err)
 	}
 
+	if err := m.contextValidateImagePullPolicy(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateLifecycle(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateLivenessProbe(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -220,6 +367,18 @@ func (m *V1ContainerSpec) ContextValidate(ctx context.Context, formats strfmt.Re
 	}
 
 	if err := m.contextValidateResources(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateSecurityContext(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateStartupProbe(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateTerminationMessagePolicy(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -242,6 +401,38 @@ func (m *V1ContainerSpec) contextValidateEnv(ctx context.Context, formats strfmt
 			return ce.ValidateName("env")
 		}
 		return err
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) contextValidateImagePullPolicy(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.ImagePullPolicy != nil {
+		if err := m.ImagePullPolicy.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("imagePullPolicy")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("imagePullPolicy")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) contextValidateLifecycle(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Lifecycle != nil {
+		if err := m.Lifecycle.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("lifecycle")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("lifecycle")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -301,6 +492,54 @@ func (m *V1ContainerSpec) contextValidateResources(ctx context.Context, formats 
 				return ve.ValidateName("resources")
 			} else if ce, ok := err.(*errors.CompositeError); ok {
 				return ce.ValidateName("resources")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) contextValidateSecurityContext(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.SecurityContext != nil {
+		if err := m.SecurityContext.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("securityContext")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("securityContext")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) contextValidateStartupProbe(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.StartupProbe != nil {
+		if err := m.StartupProbe.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("startupProbe")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("startupProbe")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *V1ContainerSpec) contextValidateTerminationMessagePolicy(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.TerminationMessagePolicy != nil {
+		if err := m.TerminationMessagePolicy.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("terminationMessagePolicy")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("terminationMessagePolicy")
 			}
 			return err
 		}
