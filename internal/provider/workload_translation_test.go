@@ -3,12 +3,14 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
-	"github.com/stackpath/vk-stackpath-provider/internal/mocks"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/mocks"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -35,11 +37,10 @@ func TestHttpHeaders(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		workloadHTTP := provider.getProbeHTTPHeadersFrom(test.k8sHTTPHeaders)
+		workloadHTTP := provider.getHTTPHeadersFrom(test.k8sHTTPHeaders)
 		for key, value := range workloadHTTP {
 			assert.Equal(t, test.expectedSPHttpHeaders[key], value)
 		}
-
 	}
 }
 
@@ -195,7 +196,11 @@ func TestProbe(t *testing.T) {
 					},
 				},
 			},
-			expectedSPProbe: nil,
+			expectedSPProbe: &workload_models.V1Probe{
+				Exec: &workload_models.V1ExecAction{
+					Command: []string{"some", "command"},
+				},
+			},
 		},
 		{
 			description: "unsupported grpc probe returns nil",
@@ -220,7 +225,231 @@ func TestProbe(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestContainerLifecycle(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	var tests = []struct {
+		description       string
+		k8sContainer      *v1.Container
+		expectedLifecycle *workload_models.V1ContainerLifecycle
+		err               error
+	}{
+		{
+			description:       "no lifecycle returned for a container that doesn't have lifecycle events",
+			k8sContainer:      &v1.Container{},
+			expectedLifecycle: nil,
+			err:               nil,
+		},
+		{
+			description: "no lifecycle returned for container with an empty lifecycle handler",
+			k8sContainer: &v1.Container{Lifecycle: &v1.Lifecycle{
+				PostStart: &v1.LifecycleHandler{},
+				PreStop:   &v1.LifecycleHandler{},
+			}},
+			expectedLifecycle: nil,
+			err:               nil,
+		},
+		{
+			description: "lifecycle with TCP socket action that has a string port that doesn't exist",
+			k8sContainer: &v1.Container{
+				Lifecycle: &v1.Lifecycle{
+					PostStart: &v1.LifecycleHandler{
+						TCPSocket: &v1.TCPSocketAction{
+							Port: intstr.IntOrString{
+								Type: intstr.String, StrVal: "http",
+							},
+						},
+					},
+				},
+			},
+			expectedLifecycle: nil,
+			err:               fmt.Errorf("unable to find named port: http"),
+		},
+		{
+			description: "lifecycle with HTTP get action that has a string port that doesn't exist",
+			k8sContainer: &v1.Container{
+				Lifecycle: &v1.Lifecycle{
+					PreStop: &v1.LifecycleHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Port: intstr.IntOrString{
+								Type: intstr.String, StrVal: "http",
+							},
+						},
+					},
+				},
+			},
+			expectedLifecycle: nil,
+			err:               fmt.Errorf("unable to find named port: http"),
+		},
+		{
+			description: "lifecycle with exec action",
+			k8sContainer: &v1.Container{
+				Lifecycle: &v1.Lifecycle{
+					PostStart: &v1.LifecycleHandler{
+						Exec: &v1.ExecAction{
+							Command: []string{"post-start-command"},
+						},
+					},
+					PreStop: &v1.LifecycleHandler{
+						Exec: &v1.ExecAction{
+							Command: []string{"pre-start-command"},
+						},
+					},
+				},
+			},
+			expectedLifecycle: &workload_models.V1ContainerLifecycle{
+				PostStart: &workload_models.V1ContainerLifecycleHandler{
+					Exec: &workload_models.V1ExecAction{Command: []string{"post-start-command"}},
+				},
+				PreStop: &workload_models.V1ContainerLifecycleHandler{
+					Exec: &workload_models.V1ExecAction{Command: []string{"pre-start-command"}}},
+			},
+			err: nil,
+		},
+		{
+			description: "post start lifecycle",
+			k8sContainer: &v1.Container{Lifecycle: &v1.Lifecycle{
+				PostStart: &v1.LifecycleHandler{
+					HTTPGet: &v1.HTTPGetAction{
+						Path:        "path1",
+						Port:        intstr.IntOrString{Type: intstr.Int, IntVal: int32(8000)},
+						Scheme:      v1.URISchemeHTTP,
+						HTTPHeaders: []v1.HTTPHeader{{Name: "test1", Value: "value1"}, {Name: "test2", Value: "value2"}},
+					},
+					TCPSocket: &v1.TCPSocketAction{
+						Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8001)},
+					},
+				},
+				PreStop: &v1.LifecycleHandler{
+					HTTPGet: &v1.HTTPGetAction{
+						Path:        "path2",
+						Port:        intstr.IntOrString{Type: intstr.Int, IntVal: int32(8000)},
+						Scheme:      v1.URISchemeHTTP,
+						HTTPHeaders: []v1.HTTPHeader{{Name: "test3", Value: "value3"}, {Name: "test4", Value: "value4"}},
+					},
+					TCPSocket: &v1.TCPSocketAction{
+						Port: intstr.IntOrString{Type: intstr.Int, IntVal: int32(8002)},
+					},
+				},
+			}},
+			expectedLifecycle: &workload_models.V1ContainerLifecycle{
+				PostStart: &workload_models.V1ContainerLifecycleHandler{
+					HTTPGet: &workload_models.V1HTTPGetAction{
+						Path:        "path1",
+						Port:        8000,
+						Scheme:      "HTTP",
+						HTTPHeaders: workload_models.V1StringMapEntry{"test1": "value1", "test2": "value2"},
+					},
+					TCPSocket: &workload_models.V1TCPSocketAction{
+						Port: 8001,
+					},
+				},
+				PreStop: &workload_models.V1ContainerLifecycleHandler{
+					HTTPGet: &workload_models.V1HTTPGetAction{
+						Path:        "path2",
+						Port:        8000,
+						Scheme:      "HTTP",
+						HTTPHeaders: workload_models.V1StringMapEntry{"test3": "value3", "test4": "value4"},
+					},
+					TCPSocket: &workload_models.V1TCPSocketAction{
+						Port: 8002,
+					},
+				},
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			containerLifecycle, err := provider.getWorkloadContainerLifecycle(test.k8sContainer)
+			if err != nil {
+				assert.Equal(t, test.err, err, test.description)
+			} else {
+				assert.Equal(t, test.expectedLifecycle, containerLifecycle, test.description)
+			}
+		})
+	}
+}
+
+func TestContainerSecurityContext(t *testing.T) {
+	ctx := context.Background()
+
+	var testInt64 int64 = 60
+	var testBool = true
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	var tests = []struct {
+		description        string
+		k8sSecurityContext *v1.SecurityContext
+		expected           *workload_models.V1ContainerSecurityContext
+		err                error
+	}{
+		{
+			description:        "no container security context returned for security context that is nil",
+			k8sSecurityContext: nil,
+			expected:           nil,
+		},
+		{
+			description:        "no container security context returned for empty security context",
+			k8sSecurityContext: &v1.SecurityContext{},
+			expected:           nil,
+		},
+		{
+			description: "successfully translate all supported fields",
+			k8sSecurityContext: &v1.SecurityContext{
+				RunAsUser:                &testInt64,
+				RunAsGroup:               &testInt64,
+				RunAsNonRoot:             &testBool,
+				ReadOnlyRootFilesystem:   &testBool,
+				AllowPrivilegeEscalation: &testBool,
+				Capabilities: &v1.Capabilities{
+					Add:  []v1.Capability{"add1", "add2"},
+					Drop: []v1.Capability{"drop1", "drop2"},
+				},
+			},
+			expected: &workload_models.V1ContainerSecurityContext{
+				RunAsUser:                strconv.Itoa(int(testInt64)),
+				RunAsGroup:               strconv.Itoa(int(testInt64)),
+				RunAsNonRoot:             testBool,
+				ReadOnlyRootFilesystem:   testBool,
+				AllowPrivilegeEscalation: testBool,
+				Capabilities: &workload_models.V1ContainerCapabilities{
+					Add:  []string{"add1", "add2"},
+					Drop: []string{"drop1", "drop2"},
+				},
+			},
+		},
+		{
+			description: "successfully translate with only 'RunAsUser' field set",
+			k8sSecurityContext: &v1.SecurityContext{
+				RunAsUser: &testInt64,
+			},
+			expected: &workload_models.V1ContainerSecurityContext{
+				RunAsUser: strconv.Itoa(int(testInt64)),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			containerSecurityContext := provider.getWorkloadContainerSecurityContext(test.k8sSecurityContext)
+			if err != nil {
+				assert.Equal(t, test.err, err, test.description)
+			} else {
+				assert.Equal(t, test.expected, containerSecurityContext, test.description)
+			}
+		})
+	}
 }
 
 func TestVolumeMounts(t *testing.T) {
@@ -375,82 +604,117 @@ func TestInstanceSizes(t *testing.T) {
 		expectedResources       workload_models.V1StringMapEntry
 	}{
 		{
-			description:             "no resource requirements result in sp-1",
+			description:             "No resource requirements lead to SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource requirements without memory result in sp-1",
+			description:             "Low CPU resource requirement without memory leads to SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource high memory result in sp-5",
-			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(24*1024*1024*1024, resource.BinarySI)}},
+			description:             "Low CPU resource with high memory requirement results in SP-8 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(512*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP8,
+		},
+		{
+			description:             "Low CPU resource with 128GiB memory requirement fit for SP-7 results in SP-7 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(128*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP7,
+		},
+		{
+			description:             "Low CPU resource with 64GiB memory requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(64*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low CPU resource with 40GiB memory requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(40*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low CPU resource with 32GiB memory requirement fit for SP-5 results in SP-5 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(32*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-4 result in sp-4",
+			description:             "Low CPU resource with 10GiB memory requirement fit for SP-4 results in SP-4 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(10*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP4,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-3 result in sp-3",
+			description:             "Low CPU resource with 8GiB memory requirement fit for SP-3 results in SP-3 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(8*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-2 result in sp-2",
+			description:             "Low CPU resource with 4GiB memory requirement fit for SP-2 results in SP-2 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(4*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP2,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-1 result in sp-1",
+			description:             "Low CPU resource with 2GiB memory requirement fit for SP-1 results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(2*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements without cpu result in sp-1",
+			description:             "Low memory requirement without CPU requirement results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements with high cpu result in sp-5",
+			description:             "Low memory requirement with high CPU requirement results in SP-8 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(64, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP8,
+		},
+		{
+			description:             "Low memory requirement with CPU requirement fit for SP-7 results in SP-7 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(32, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP7,
+		},
+		{
+			description:             "Low memory requirement with CPU requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(16, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low memory requirement with CPU requirement fit for SP-5 results in SP-5 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
-			description:             "small memory resource requirements with with cpu fit for sp-4 result in sp-4",
+			description:             "Low memory requirement with CPU requirement fit for SP-4 results in SP-4 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(4, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP4,
 		},
 		{
-			description:             "small memory resource requirements with cpu fit for sp-2 and sp-3 result in sp-2",
+			description:             "Low memory requirement with CPU requirement fit for SP-2 and SP-3 results in SP-2 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP2,
 		},
 		{
-			description:             "small memory resource requirements with cpu fit for sp-1 result in sp-1",
+			description:             "Low memory requirement with CPU requirement fit for SP-1 results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(1, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "cpu matching sp-2 and sp-3 with memory matching sp-3 results in sp-3",
+			description:             "Matching CPU requirement for SP-2 and SP-3 with memory matching SP-3 leads to SP-3 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description:             "using limits instead of requests works as well",
+			description:             "Using limits instead of requests produces the same result",
 			k8sResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description: "requests and limits maximum calculated correctly",
+			description: "Correct calculation for maximum requests and limits",
 			k8sResourceRequirements: v1.ResourceRequirements{
-				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
+				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(48, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 				Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 			},
-			expectedResources: containerResourcesSP5,
+			expectedResources: containerResourcesSP8,
 		},
 	}
 	for _, test := range tests {
@@ -747,7 +1011,6 @@ func TestWorkloadVolumes(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestGetWorkloadFromErrorsWithInvalidVolumeSize(t *testing.T) {
@@ -785,43 +1048,94 @@ func TestGetWorkloadFromErrorsWithInvalidLivenessProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed to create the test provider", err)
 	}
-	pod := v1.Pod{
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
-				{
-					Name: "valid-volume",
-					VolumeSource: v1.VolumeSource{
-						CSI: &v1.CSIVolumeSource{
-							Driver:           stackpathVirtualKubeletCSIDriver,
-							VolumeAttributes: map[string]string{"size": "1Gi"},
-						},
-					},
-				},
-			},
-			Containers: []v1.Container{
-				{
-					Name:  "test",
-					Image: "nginx:latest",
-					Ports: []v1.ContainerPort{
+	testCases := []struct {
+		description   string
+		pod           *v1.Pod
+		expectedError error
+	}{
+		{
+			description: "fails to create get a workload form the pod due to bad liveness probe port set for the container",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
 						{
-							Name:          "http",
-							ContainerPort: int32(80),
+							Name: "valid-volume",
+							VolumeSource: v1.VolumeSource{
+								CSI: &v1.CSIVolumeSource{
+									Driver:           stackpathVirtualKubeletCSIDriver,
+									VolumeAttributes: map[string]string{"size": "1Gi"},
+								},
+							},
 						},
 					},
-					LivenessProbe: &v1.Probe{
-						ProbeHandler: v1.ProbeHandler{
-							HTTPGet: &v1.HTTPGetAction{
-								Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+					Containers: []v1.Container{
+						{
+							Name:  "test",
+							Image: "nginx:latest",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: int32(80),
+								},
+							},
+							LivenessProbe: &v1.Probe{
+								ProbeHandler: v1.ProbeHandler{
+									HTTPGet: &v1.HTTPGetAction{
+										Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+									},
+								},
 							},
 						},
 					},
 				},
 			},
+			expectedError: errors.New("unable to find named port: not-exists"),
+		}, {
+			description: "fails to create get a workload form the pod due to bad liveness probe port set for the init container",
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
+						{
+							Name: "valid-volume",
+							VolumeSource: v1.VolumeSource{
+								CSI: &v1.CSIVolumeSource{
+									Driver:           stackpathVirtualKubeletCSIDriver,
+									VolumeAttributes: map[string]string{"size": "1Gi"},
+								},
+							},
+						},
+					},
+					InitContainers: []v1.Container{
+						{
+							Name:  "test",
+							Image: "nginx:latest",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: int32(80),
+								},
+							},
+							LivenessProbe: &v1.Probe{
+								ProbeHandler: v1.ProbeHandler{
+									HTTPGet: &v1.HTTPGetAction{
+										Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: errors.New("unable to find named port: not-exists"),
 		},
 	}
-
-	_, err = provider.getWorkloadFrom(&pod)
-	assert.ErrorContains(t, err, "unable to find named port")
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			_, err = provider.getWorkloadFrom(c.pod)
+			assert.Equal(t, err, c.expectedError)
+		},
+		)
+	}
 }
 
 func TestGetWorkloadFromErrorsWithInvalidReadinessProbe(t *testing.T) {
@@ -855,6 +1169,52 @@ func TestGetWorkloadFromErrorsWithInvalidReadinessProbe(t *testing.T) {
 						},
 					},
 					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err = provider.getWorkloadFrom(&pod)
+	assert.ErrorContains(t, err, "unable to find named port")
+}
+
+func TestGetWorkloadFromErrorsWithInvalidStartupProbe(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	pod := v1.Pod{
+		Spec: v1.PodSpec{
+			Volumes: []v1.Volume{
+				{
+					Name: "valid-volume",
+					VolumeSource: v1.VolumeSource{
+						CSI: &v1.CSIVolumeSource{
+							Driver:           stackpathVirtualKubeletCSIDriver,
+							VolumeAttributes: map[string]string{"size": "1Gi"},
+						},
+					},
+				},
+			},
+			Containers: []v1.Container{
+				{
+					Name:  "test",
+					Image: "nginx:latest",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          "http",
+							ContainerPort: int32(80),
+						},
+					},
+					StartupProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
 								Port: intstr.IntOrString{Type: intstr.String, StrVal: "not-exists"},
@@ -976,6 +1336,8 @@ func TestContainerWithCommand(t *testing.T) {
 				Command: []string{
 					"test",
 					"command",
+				},
+				Args: []string{
 					"test",
 					"args",
 				},
@@ -1017,6 +1379,7 @@ func TestContainerWithCommand(t *testing.T) {
 			assert.ErrorContains(t, err, test.err, test.description)
 		} else {
 			assert.Equal(t, test.expected.Command, containerSpec.Command, test.description)
+			assert.Equal(t, test.expected.Args, containerSpec.Args, test.description)
 		}
 	}
 }
@@ -1058,6 +1421,21 @@ func TestGetWorkloadFrom(t *testing.T) {
 									ContainerPort: 8080,
 								},
 							},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: v1.TerminationMessageReadFile,
+						},
+					},
+					InitContainers: []v1.Container{
+						{
+							Image:   "init-image",
+							Command: []string{"/sh/bash"},
+							Name:    "init",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 8080,
+								},
+							},
 						},
 					},
 				},
@@ -1081,6 +1459,31 @@ func TestGetWorkloadFrom(t *testing.T) {
 						"nginx": workload_models.V1ContainerSpec{
 							Env:     workload_models.V1EnvironmentVariableMapEntry{},
 							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Ports: workload_models.V1InstancePortMapEntry{"http": workload_models.V1InstancePort{
+								Port:                        8080,
+								EnableImplicitNetworkPolicy: false,
+								Protocol:                    "TCP",
+							}},
+							Resources: &workload_models.V1ResourceRequirements{
+								Limits: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+								Requests: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+							},
+							VolumeMounts:             []*workload_models.V1InstanceVolumeMount{},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: workload_models.V1ContainerTerminationMessagePolicyFILE.Pointer(),
+						},
+					},
+					InitContainers: workload_models.V1ContainerSpecMapEntry{
+						"init": workload_models.V1ContainerSpec{
+							Env:     workload_models.V1EnvironmentVariableMapEntry{},
+							Image:   "init-image",
 							Command: []string{"/sh/bash"},
 							Ports: workload_models.V1InstancePortMapEntry{"http": workload_models.V1InstancePort{
 								Port:                        8080,
@@ -1132,6 +1535,136 @@ func TestGetWorkloadFrom(t *testing.T) {
 				},
 			},
 		},
+		{
+			description: "fails to translate due to an error in container's lifecycle",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					Volumes: []v1.Volume{
+						{
+							Name: "valid-volume",
+							VolumeSource: v1.VolumeSource{
+								CSI: &v1.CSIVolumeSource{
+									Driver:           stackpathVirtualKubeletCSIDriver,
+									VolumeAttributes: map[string]string{"size": "1Gi"},
+								},
+							},
+						},
+					},
+					Containers: []v1.Container{
+						{
+							Name:  "test",
+							Image: "nginx:latest",
+							Lifecycle: &v1.Lifecycle{
+								PostStart: &v1.LifecycleHandler{
+									TCPSocket: &v1.TCPSocketAction{
+										Port: intstr.IntOrString{
+											Type: intstr.String, StrVal: "http",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: nil,
+			err:      "unable to find named port: http",
+		},
+
+		{
+			description: "successfully translates from v1.Pod to workload_model.V1Workload with TerminationMessagePolicy FALLBACK_TO_LOGS_ON_ERROR",
+			pod: v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Name:    "nginx",
+							Ports: []v1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 8080,
+								},
+							},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: v1.TerminationMessageFallbackToLogsOnError,
+						},
+					},
+				},
+			},
+			expected: &workload_models.V1Workload{
+				Name: "namespace-name",
+				Slug: "namespace-name",
+				Metadata: &workload_models.V1Metadata{
+					Labels: map[string]string{
+						podNameLabelKey:      "name",
+						podNamespaceLabelKey: "namespace",
+						nodeNameLabelKey:     "vk-mock",
+					},
+				},
+				Spec: &workload_models.V1WorkloadSpec{
+					Containers: workload_models.V1ContainerSpecMapEntry{
+						"nginx": workload_models.V1ContainerSpec{
+							Env:     workload_models.V1EnvironmentVariableMapEntry{},
+							Image:   "test-image",
+							Command: []string{"/sh/bash"},
+							Ports: workload_models.V1InstancePortMapEntry{"http": workload_models.V1InstancePort{
+								Port:                        8080,
+								EnableImplicitNetworkPolicy: false,
+								Protocol:                    "TCP",
+							}},
+							Resources: &workload_models.V1ResourceRequirements{
+								Limits: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+								Requests: workload_models.V1StringMapEntry{
+									"cpu":    "1",
+									"memory": "2Gi",
+								},
+							},
+							VolumeMounts:             []*workload_models.V1InstanceVolumeMount{},
+							TerminationMessagePath:   "/test/path",
+							TerminationMessagePolicy: workload_models.V1ContainerTerminationMessagePolicyFALLBACKTOLOGSONERROR.Pointer(),
+						},
+					},
+
+					ImagePullCredentials: workload_models.V1WrappedImagePullCredentials{},
+					NetworkInterfaces: []*workload_models.V1NetworkInterface{
+						{
+							EnableOneToOneNat: true,
+							IPFamilies:        []*workload_models.V1IPFamily{workload_models.NewV1IPFamily("IPv4")},
+							IPV6Subnet:        "",
+							Network:           "default",
+							Subnet:            "",
+						},
+					},
+					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
+				},
+				Targets: workload_models.V1TargetMapEntry{
+					"city-code": workload_models.V1Target{
+						Spec: &workload_models.V1TargetSpec{
+							DeploymentScope: "cityCode",
+							Deployments: &workload_models.V1DeploymentSpec{
+								MaxReplicas: 1,
+								MinReplicas: 1,
+								Selectors: []*workload_models.V1MatchExpression{
+									{
+										Key:      "cityCode",
+										Operator: "in",
+										Values:   []string{testCityCode},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -1141,5 +1674,229 @@ func TestGetWorkloadFrom(t *testing.T) {
 		} else {
 			assert.Equal(t, test.expected, workload, test.description)
 		}
+	}
+}
+
+func TestWorkloadRuntimeSettings(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	var testInt64 int64 = 60
+	var testString string = "value"
+	var testBool = true
+
+	var tests = []struct {
+		description string
+		pod         v1.Pod
+		expected    *workload_models.V1WorkloadInstanceRuntimeSettings
+		err         error
+		len         int
+	}{
+		{
+			description: "empty podspec return ok without runtime settings",
+			pod:         v1.Pod{},
+			expected:    nil,
+		},
+		{
+			description: "successfully translate all runtime settings",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					TerminationGracePeriodSeconds: &testInt64,
+					HostAliases: []v1.HostAlias{{
+						IP:        "127.0.0.1",
+						Hostnames: []string{"Hostname1", "Hostname2"},
+					}},
+					DNSConfig: &v1.PodDNSConfig{
+						Options: []v1.PodDNSConfigOption{{
+							Name:  "Test",
+							Value: &testString,
+						}},
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+					},
+					ShareProcessNamespace: &testBool,
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					TerminationGracePeriodSeconds: strconv.Itoa(int(testInt64)),
+					HostAliases: []*workload_models.V1HostAlias{
+						{
+							IP:        "127.0.0.1",
+							Hostnames: []string{"Hostname1", "Hostname2"},
+						},
+					},
+					DNSConfig: &workload_models.V1DNSConfig{
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+						Options: []*workload_models.V1DNSConfigOption{
+							{
+								Name:  "Test",
+								Value: testString,
+							},
+						},
+					},
+					ShareProcessNamespace: testBool,
+				},
+			},
+		},
+		{
+			description: "successfully translate share process name runtime setting ",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					ShareProcessNamespace: &testBool,
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					ShareProcessNamespace: testBool,
+				},
+			},
+		},
+		{
+			description: "successfully translate DNS config runtime setting ",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					DNSConfig: &v1.PodDNSConfig{
+						Options: []v1.PodDNSConfigOption{{
+							Name:  "Test",
+							Value: &testString,
+						}},
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+					},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					DNSConfig: &workload_models.V1DNSConfig{
+						Nameservers: []string{"Nameserver1", "Nameserver2"},
+						Searches:    []string{"Search1", "Search2"},
+						Options: []*workload_models.V1DNSConfigOption{
+							{
+								Name:  "Test",
+								Value: testString,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			description: "successfully translate host aliases runtime setting ",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					HostAliases: []v1.HostAlias{{
+						IP:        "127.0.0.1",
+						Hostnames: []string{"Hostname1", "Hostname2"},
+					}},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					HostAliases: []*workload_models.V1HostAlias{
+						{
+							IP:        "127.0.0.1",
+							Hostnames: []string{"Hostname1", "Hostname2"},
+						},
+					}},
+			},
+		},
+		{
+			description: "successfully translate termination grace period runtime setting",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					TerminationGracePeriodSeconds: &testInt64,
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					TerminationGracePeriodSeconds: strconv.Itoa(int(testInt64)),
+				},
+			},
+		},
+		{
+			description: "nil in podspec's security context is ignored",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					SecurityContext: nil,
+				},
+			},
+			expected: nil,
+		},
+		{
+			description: "successfully translates podspec's security context into workload's instance security context",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					SecurityContext: &v1.PodSecurityContext{
+						RunAsUser:          &testInt64,
+						RunAsGroup:         &testInt64,
+						RunAsNonRoot:       &testBool,
+						SupplementalGroups: []int64{123, 456},
+						Sysctls:            []v1.Sysctl{{Name: "test", Value: "value"}},
+					},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					SecurityContext: &workload_models.V1WorkloadInstanceSecurityContext{
+						RunAsUser:          strconv.Itoa(int(testInt64)),
+						RunAsGroup:         strconv.Itoa(int(testInt64)),
+						RunAsNonRoot:       testBool,
+						SupplementalGroups: []string{"123", "456"},
+						Sysctls:            []*workload_models.V1Sysctl{{Name: "test", Value: "value"}},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range tests {
+		t.Run(c.description, func(t *testing.T) {
+			runtime := provider.getWorkloadRuntimeSettingsFrom(c.pod.Spec)
+			assert.Equal(t, c.expected, runtime)
+		})
+	}
+}
+
+func TestGetWorkloadContainerImagePullPolicyFrom(t *testing.T) {
+	ctx := context.Background()
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+
+	var tests = []struct {
+		description string
+		pullPolicy  v1.PullPolicy
+		expected    *workload_models.V1ContainerImagePullPolicy
+	}{
+		{
+			description: "successfully translate pull always policy",
+			pullPolicy:  v1.PullAlways,
+			expected:    workload_models.V1ContainerImagePullPolicyALWAYS.Pointer(),
+		},
+		{
+			description: "successfully translate pull not presented policy",
+			pullPolicy:  v1.PullIfNotPresent,
+			expected:    workload_models.V1ContainerImagePullPolicyIFNOTPRESENT.Pointer(),
+		},
+		{
+			description: "returns nil for not supported image pull policy",
+			pullPolicy:  v1.PullNever,
+			expected:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			policy := provider.getWorkloadContainerImagePullPolicyFrom(test.pullPolicy)
+			assert.Equal(t, test.expected, policy)
+		})
 	}
 }

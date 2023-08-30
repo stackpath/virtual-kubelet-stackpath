@@ -1,7 +1,7 @@
 // Package provider implements the stackpath virtual kubelet provider
 package provider
 
-import "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+import "github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 
 var (
 	containerResourcesSP1 = workload_models.V1StringMapEntry{"cpu": "1", "memory": "2Gi"}
@@ -9,6 +9,9 @@ var (
 	containerResourcesSP3 = workload_models.V1StringMapEntry{"cpu": "2", "memory": "8Gi"}
 	containerResourcesSP4 = workload_models.V1StringMapEntry{"cpu": "4", "memory": "16Gi"}
 	containerResourcesSP5 = workload_models.V1StringMapEntry{"cpu": "8", "memory": "32Gi"}
+	containerResourcesSP6 = workload_models.V1StringMapEntry{"cpu": "16", "memory": "64Gi"}
+	containerResourcesSP7 = workload_models.V1StringMapEntry{"cpu": "32", "memory": "128Gi"}
+	containerResourcesSP8 = workload_models.V1StringMapEntry{"cpu": "48", "memory": "256Gi"}
 )
 
 const defaultK8sServiceAccountMountPath = "/var/run/secrets/kubernetes.io/serviceaccount"
