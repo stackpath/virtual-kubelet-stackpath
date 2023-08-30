@@ -11,6 +11,7 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 )
 
 // V1Workload A computing workload
@@ -21,6 +22,7 @@ import (
 type V1Workload struct {
 
 	// A workload's unique identifier
+	// Read Only: true
 	ID string `json:"id,omitempty"`
 
 	// metadata
@@ -38,9 +40,11 @@ type V1Workload struct {
 	Spec *V1WorkloadSpec `json:"spec,omitempty"`
 
 	// The ID of the stack that a workload belongs to
+	// Read Only: true
 	StackID string `json:"stackId,omitempty"`
 
 	// status
+	// Read Only: true
 	Status *V1WorkloadStatus `json:"status,omitempty"`
 
 	// targets
@@ -153,11 +157,19 @@ func (m *V1Workload) validateTargets(formats strfmt.Registry) error {
 func (m *V1Workload) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.contextValidateID(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateMetadata(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
 	if err := m.contextValidateSpec(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.contextValidateStackID(ctx, formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -172,6 +184,15 @@ func (m *V1Workload) ContextValidate(ctx context.Context, formats strfmt.Registr
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *V1Workload) contextValidateID(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := validate.ReadOnly(ctx, "id", "body", string(m.ID)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -202,6 +223,15 @@ func (m *V1Workload) contextValidateSpec(ctx context.Context, formats strfmt.Reg
 			}
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (m *V1Workload) contextValidateStackID(ctx context.Context, formats strfmt.Registry) error {
+
+	if err := validate.ReadOnly(ctx, "stackId", "body", string(m.StackID)); err != nil {
+		return err
 	}
 
 	return nil

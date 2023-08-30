@@ -196,7 +196,11 @@ func TestProbe(t *testing.T) {
 					},
 				},
 			},
-			expectedSPProbe: nil,
+			expectedSPProbe: &workload_models.V1Probe{
+				Exec: &workload_models.V1ExecAction{
+					Command: []string{"some", "command"},
+				},
+			},
 		},
 		{
 			description: "unsupported grpc probe returns nil",
@@ -284,18 +288,29 @@ func TestContainerLifecycle(t *testing.T) {
 			err:               fmt.Errorf("unable to find named port: http"),
 		},
 		{
-			description: "exec lifecycle handler is not supported",
+			description: "lifecycle with exec action",
 			k8sContainer: &v1.Container{
 				Lifecycle: &v1.Lifecycle{
 					PostStart: &v1.LifecycleHandler{
 						Exec: &v1.ExecAction{
-							Command: []string{"test"},
+							Command: []string{"post-start-command"},
+						},
+					},
+					PreStop: &v1.LifecycleHandler{
+						Exec: &v1.ExecAction{
+							Command: []string{"pre-start-command"},
 						},
 					},
 				},
 			},
-			expectedLifecycle: nil,
-			err:               nil,
+			expectedLifecycle: &workload_models.V1ContainerLifecycle{
+				PostStart: &workload_models.V1ContainerLifecycleHandler{
+					Exec: &workload_models.V1ExecAction{Command: []string{"post-start-command"}},
+				},
+				PreStop: &workload_models.V1ContainerLifecycleHandler{
+					Exec: &workload_models.V1ExecAction{Command: []string{"pre-start-command"}}},
+			},
+			err: nil,
 		},
 		{
 			description: "post start lifecycle",
@@ -358,6 +373,80 @@ func TestContainerLifecycle(t *testing.T) {
 				assert.Equal(t, test.err, err, test.description)
 			} else {
 				assert.Equal(t, test.expectedLifecycle, containerLifecycle, test.description)
+			}
+		})
+	}
+}
+
+func TestContainerSecurityContext(t *testing.T) {
+	ctx := context.Background()
+
+	var testInt64 int64 = 60
+	var testBool = true
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal("failed to create the test provider", err)
+	}
+	var tests = []struct {
+		description        string
+		k8sSecurityContext *v1.SecurityContext
+		expected           *workload_models.V1ContainerSecurityContext
+		err                error
+	}{
+		{
+			description:        "no container security context returned for security context that is nil",
+			k8sSecurityContext: nil,
+			expected:           nil,
+		},
+		{
+			description:        "no container security context returned for empty security context",
+			k8sSecurityContext: &v1.SecurityContext{},
+			expected:           nil,
+		},
+		{
+			description: "successfully translate all supported fields",
+			k8sSecurityContext: &v1.SecurityContext{
+				RunAsUser:                &testInt64,
+				RunAsGroup:               &testInt64,
+				RunAsNonRoot:             &testBool,
+				ReadOnlyRootFilesystem:   &testBool,
+				AllowPrivilegeEscalation: &testBool,
+				Capabilities: &v1.Capabilities{
+					Add:  []v1.Capability{"add1", "add2"},
+					Drop: []v1.Capability{"drop1", "drop2"},
+				},
+			},
+			expected: &workload_models.V1ContainerSecurityContext{
+				RunAsUser:                strconv.Itoa(int(testInt64)),
+				RunAsGroup:               strconv.Itoa(int(testInt64)),
+				RunAsNonRoot:             testBool,
+				ReadOnlyRootFilesystem:   testBool,
+				AllowPrivilegeEscalation: testBool,
+				Capabilities: &workload_models.V1ContainerCapabilities{
+					Add:  []string{"add1", "add2"},
+					Drop: []string{"drop1", "drop2"},
+				},
+			},
+		},
+		{
+			description: "successfully translate with only 'RunAsUser' field set",
+			k8sSecurityContext: &v1.SecurityContext{
+				RunAsUser: &testInt64,
+			},
+			expected: &workload_models.V1ContainerSecurityContext{
+				RunAsUser: strconv.Itoa(int(testInt64)),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			containerSecurityContext := provider.getWorkloadContainerSecurityContext(test.k8sSecurityContext)
+			if err != nil {
+				assert.Equal(t, test.err, err, test.description)
+			} else {
+				assert.Equal(t, test.expected, containerSecurityContext, test.description)
 			}
 		})
 	}
@@ -515,82 +604,117 @@ func TestInstanceSizes(t *testing.T) {
 		expectedResources       workload_models.V1StringMapEntry
 	}{
 		{
-			description:             "no resource requirements result in sp-1",
+			description:             "No resource requirements lead to SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource requirements without memory result in sp-1",
+			description:             "Low CPU resource requirement without memory leads to SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small cpu resource high memory result in sp-5",
-			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(24*1024*1024*1024, resource.BinarySI)}},
+			description:             "Low CPU resource with high memory requirement results in SP-8 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(512*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP8,
+		},
+		{
+			description:             "Low CPU resource with 128GiB memory requirement fit for SP-7 results in SP-7 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(128*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP7,
+		},
+		{
+			description:             "Low CPU resource with 64GiB memory requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(64*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low CPU resource with 40GiB memory requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(40*1024*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low CPU resource with 32GiB memory requirement fit for SP-5 results in SP-5 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(32*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-4 result in sp-4",
+			description:             "Low CPU resource with 10GiB memory requirement fit for SP-4 results in SP-4 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(10*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP4,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-3 result in sp-3",
+			description:             "Low CPU resource with 8GiB memory requirement fit for SP-3 results in SP-3 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(8*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-2 result in sp-2",
+			description:             "Low CPU resource with 4GiB memory requirement fit for SP-2 results in SP-2 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(4*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP2,
 		},
 		{
-			description:             "small cpu resource memory fit for sp-1 result in sp-1",
+			description:             "Low CPU resource with 2GiB memory requirement fit for SP-1 results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewMilliQuantity(100, resource.DecimalSI), "memory": *resource.NewQuantity(2*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements without cpu result in sp-1",
+			description:             "Low memory requirement without CPU requirement results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "small memory resource requirements with high cpu result in sp-5",
+			description:             "Low memory requirement with high CPU requirement results in SP-8 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(64, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP8,
+		},
+		{
+			description:             "Low memory requirement with CPU requirement fit for SP-7 results in SP-7 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(32, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP7,
+		},
+		{
+			description:             "Low memory requirement with CPU requirement fit for SP-6 results in SP-6 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(16, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
+			expectedResources:       containerResourcesSP6,
+		},
+		{
+			description:             "Low memory requirement with CPU requirement fit for SP-5 results in SP-5 selection",
+			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP5,
 		},
 		{
-			description:             "small memory resource requirements with with cpu fit for sp-4 result in sp-4",
+			description:             "Low memory requirement with CPU requirement fit for SP-4 results in SP-4 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(4, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP4,
 		},
 		{
-			description:             "small memory resource requirements with cpu fit for sp-2 and sp-3 result in sp-2",
+			description:             "Low memory requirement with CPU requirement fit for SP-2 and SP-3 results in SP-2 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP2,
 		},
 		{
-			description:             "small memory resource requirements with cpu fit for sp-1 result in sp-1",
+			description:             "Low memory requirement with CPU requirement fit for SP-1 results in SP-1 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(1, resource.DecimalSI), "memory": *resource.NewQuantity(100*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP1,
 		},
 		{
-			description:             "cpu matching sp-2 and sp-3 with memory matching sp-3 results in sp-3",
+			description:             "Matching CPU requirement for SP-2 and SP-3 with memory matching SP-3 leads to SP-3 selection",
 			k8sResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description:             "using limits instead of requests works as well",
+			description:             "Using limits instead of requests produces the same result",
 			k8sResourceRequirements: v1.ResourceRequirements{Limits: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)}},
 			expectedResources:       containerResourcesSP3,
 		},
 		{
-			description: "requests and limits maximum calculated correctly",
+			description: "Correct calculation for maximum requests and limits",
 			k8sResourceRequirements: v1.ResourceRequirements{
-				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(8, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
+				Limits:   v1.ResourceList{"cpu": *resource.NewQuantity(48, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 				Requests: v1.ResourceList{"cpu": *resource.NewQuantity(2, resource.DecimalSI), "memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI)},
 			},
-			expectedResources: containerResourcesSP5,
+			expectedResources: containerResourcesSP8,
 		},
 	}
 	for _, test := range tests {
@@ -1390,7 +1514,6 @@ func TestGetWorkloadFrom(t *testing.T) {
 						},
 					},
 					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
-					Runtime:              &workload_models.V1WorkloadInstanceRuntimeSettings{},
 				},
 				Targets: workload_models.V1TargetMapEntry{
 					"city-code": workload_models.V1Target{
@@ -1521,7 +1644,6 @@ func TestGetWorkloadFrom(t *testing.T) {
 						},
 					},
 					VolumeClaimTemplates: []*workload_models.V1VolumeClaim{},
-					Runtime:              &workload_models.V1WorkloadInstanceRuntimeSettings{},
 				},
 				Targets: workload_models.V1TargetMapEntry{
 					"city-code": workload_models.V1Target{
@@ -1575,9 +1697,9 @@ func TestWorkloadRuntimeSettings(t *testing.T) {
 		len         int
 	}{
 		{
-			description: "empty pod return ok without runtime settings",
+			description: "empty podspec return ok without runtime settings",
 			pod:         v1.Pod{},
-			expected:    &workload_models.V1WorkloadInstanceRuntimeSettings{},
+			expected:    nil,
 		},
 		{
 			description: "successfully translate all runtime settings",
@@ -1694,6 +1816,40 @@ func TestWorkloadRuntimeSettings(t *testing.T) {
 			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
 				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
 					TerminationGracePeriodSeconds: strconv.Itoa(int(testInt64)),
+				},
+			},
+		},
+		{
+			description: "nil in podspec's security context is ignored",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					SecurityContext: nil,
+				},
+			},
+			expected: nil,
+		},
+		{
+			description: "successfully translates podspec's security context into workload's instance security context",
+			pod: v1.Pod{
+				Spec: v1.PodSpec{
+					SecurityContext: &v1.PodSecurityContext{
+						RunAsUser:          &testInt64,
+						RunAsGroup:         &testInt64,
+						RunAsNonRoot:       &testBool,
+						SupplementalGroups: []int64{123, 456},
+						Sysctls:            []v1.Sysctl{{Name: "test", Value: "value"}},
+					},
+				},
+			},
+			expected: &workload_models.V1WorkloadInstanceRuntimeSettings{
+				Containers: &workload_models.V1WorkloadInstanceContainerRuntimeSettings{
+					SecurityContext: &workload_models.V1WorkloadInstanceSecurityContext{
+						RunAsUser:          strconv.Itoa(int(testInt64)),
+						RunAsGroup:         strconv.Itoa(int(testInt64)),
+						RunAsNonRoot:       testBool,
+						SupplementalGroups: []string{"123", "456"},
+						Sysctls:            []*workload_models.V1Sysctl{{Name: "test", Value: "value"}},
+					},
 				},
 			},
 		},

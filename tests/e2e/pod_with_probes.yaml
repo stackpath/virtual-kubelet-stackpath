@@ -18,10 +18,9 @@ spec:
         tcpSocket:
           port: 80
       livenessProbe:
-        tcpSocket:
-          port: 80
-        initialDelaySeconds: 5
-        periodSeconds: 10
+        exec:
+          command:
+            - uname
       readinessProbe:
         httpGet:
           path: /

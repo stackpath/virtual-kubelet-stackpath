@@ -82,6 +82,32 @@ func (p *StackpathProvider) getWorkloadSpecFrom(pod *v1.Pod) (*workload_models.V
 	return &spec, nil
 }
 
+func (p *StackpathProvider) getWorkloadInstanceSecurityContext(context *v1.PodSecurityContext) *workload_models.V1WorkloadInstanceSecurityContext {
+	sc := workload_models.V1WorkloadInstanceSecurityContext{}
+	if context.RunAsUser != nil {
+		sc.RunAsUser = strconv.FormatInt(*context.RunAsUser, 10)
+	}
+	if context.RunAsGroup != nil {
+		sc.RunAsGroup = strconv.FormatInt(*context.RunAsGroup, 10)
+	}
+	if context.RunAsNonRoot != nil {
+		sc.RunAsNonRoot = *context.RunAsNonRoot
+	}
+
+	sc.SupplementalGroups = make([]string, 0)
+	for _, v := range context.SupplementalGroups {
+		sc.SupplementalGroups = append(sc.SupplementalGroups, strconv.FormatInt(v, 10))
+	}
+	for _, v := range context.Sysctls {
+		sc.Sysctls = append(sc.Sysctls, &workload_models.V1Sysctl{
+			Name:  v.Name,
+			Value: v.Value,
+		})
+	}
+
+	return &sc
+}
+
 func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *workload_models.V1WorkloadInstanceRuntimeSettings {
 
 	runtime := workload_models.V1WorkloadInstanceRuntimeSettings{}
@@ -118,8 +144,15 @@ func (p *StackpathProvider) getWorkloadRuntimeSettingsFrom(spec v1.PodSpec) *wor
 		settings.ShareProcessNamespace = *spec.ShareProcessNamespace
 	}
 
+	if spec.SecurityContext != nil {
+		settingsExist = true
+		settings.SecurityContext = p.getWorkloadInstanceSecurityContext(spec.SecurityContext)
+	}
+
 	if settingsExist {
 		runtime.Containers = &settings
+	} else {
+		return nil
 	}
 
 	return &runtime
@@ -263,6 +296,8 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 		return nil, err
 	}
 
+	securityContext := p.getWorkloadContainerSecurityContext(k8sContainer.SecurityContext)
+
 	workloadContainerSpec := workload_models.V1ContainerSpec{
 		Image:           k8sContainer.Image,
 		Command:         k8sContainer.Command,
@@ -277,6 +312,7 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 		WorkingDir:      k8sContainer.WorkingDir,
 		Lifecycle:       lifecycle,
 		StartupProbe:    startupProbe,
+		SecurityContext: securityContext,
 	}
 
 	if k8sContainer.TerminationMessagePath != "" {
@@ -292,6 +328,40 @@ func (p *StackpathProvider) getWorkloadContainerSpecFrom(k8sContainer *v1.Contai
 	}
 
 	return &workloadContainerSpec, nil
+}
+
+func (p *StackpathProvider) getWorkloadContainerSecurityContext(context *v1.SecurityContext) *workload_models.V1ContainerSecurityContext {
+	if context == nil || *context == (v1.SecurityContext{}) {
+		return nil
+	}
+
+	sc := workload_models.V1ContainerSecurityContext{}
+	if context.RunAsUser != nil {
+		sc.RunAsUser = strconv.FormatInt(*context.RunAsUser, 10)
+	}
+	if context.RunAsGroup != nil {
+		sc.RunAsGroup = strconv.FormatInt(*context.RunAsGroup, 10)
+	}
+	if context.RunAsNonRoot != nil {
+		sc.RunAsNonRoot = *context.RunAsNonRoot
+	}
+	if context.ReadOnlyRootFilesystem != nil {
+		sc.ReadOnlyRootFilesystem = *context.ReadOnlyRootFilesystem
+	}
+	if context.AllowPrivilegeEscalation != nil {
+		sc.AllowPrivilegeEscalation = *context.AllowPrivilegeEscalation
+	}
+	if context.Capabilities != nil {
+		sc.Capabilities = &workload_models.V1ContainerCapabilities{}
+		for _, v := range context.Capabilities.Add {
+			sc.Capabilities.Add = append(sc.Capabilities.Add, string(v))
+		}
+		for _, v := range context.Capabilities.Drop {
+			sc.Capabilities.Drop = append(sc.Capabilities.Drop, string(v))
+		}
+	}
+
+	return &sc
 }
 
 func (p *StackpathProvider) getWorkloadContainerLifecycle(container *v1.Container) (*workload_models.V1ContainerLifecycle, error) {
@@ -325,11 +395,6 @@ func (p *StackpathProvider) getContainerLifecycleHandlerFrom(k8sLifecycleHandler
 		return nil, nil
 	}
 
-	if k8sLifecycleHandler.Exec != nil {
-		p.logger.Warn("exec container lifecycle is not supported, skipping")
-		return nil, nil
-	}
-
 	handler := workload_models.V1ContainerLifecycleHandler{}
 	var port int32 = 0
 	var err error
@@ -353,6 +418,9 @@ func (p *StackpathProvider) getContainerLifecycleHandlerFrom(k8sLifecycleHandler
 			return nil, err
 		}
 		handler.TCPSocket = &workload_models.V1TCPSocketAction{Port: port}
+	}
+	if k8sLifecycleHandler.Exec != nil {
+		handler.Exec = &workload_models.V1ExecAction{Command: k8sLifecycleHandler.Exec.Command}
 	}
 
 	return &handler, nil
@@ -437,7 +505,7 @@ func (p *StackpathProvider) getWorkloadContainerResourcesFrom(k8sResource v1.Res
 
 }
 
-// toSPInstanceSize replaces the resource allocation requests to one of the 5 supported instance sizes provided by SP
+// toSPInstanceSize replaces the resource allocation requests to one of the 8 supported instance sizes provided by SP
 func toSPInstanceSize(k8sResource v1.ResourceRequirements) workload_models.V1StringMapEntry {
 	var requestCPU, requestMEM, limitCPU, limitMEM *resource.Quantity
 
@@ -445,10 +513,16 @@ func toSPInstanceSize(k8sResource v1.ResourceRequirements) workload_models.V1Str
 	mem4Gi := resource.NewQuantity(4*oneGi, resource.BinarySI)
 	mem8Gi := resource.NewQuantity(8*oneGi, resource.BinarySI)
 	mem16Gi := resource.NewQuantity(16*oneGi, resource.BinarySI)
+	mem32Gi := resource.NewQuantity(32*oneGi, resource.BinarySI)
+	mem64Gi := resource.NewQuantity(64*oneGi, resource.BinarySI)
+	mem128Gi := resource.NewQuantity(128*oneGi, resource.BinarySI)
 
 	cpu1 := resource.NewQuantity(1, resource.DecimalSI)
 	cpu2 := resource.NewQuantity(2, resource.DecimalSI)
 	cpu4 := resource.NewQuantity(4, resource.DecimalSI)
+	cpu8 := resource.NewQuantity(8, resource.DecimalSI)
+	cpu16 := resource.NewQuantity(16, resource.DecimalSI)
+	cpu32 := resource.NewQuantity(32, resource.DecimalSI)
 
 	if k8sResource.Requests != nil {
 		requestCPU = k8sResource.Requests.Cpu()
@@ -471,7 +545,19 @@ func toSPInstanceSize(k8sResource v1.ResourceRequirements) workload_models.V1Str
 	cpu := maxResource(requestCPU, limitCPU)
 	mem := maxResource(requestMEM, limitMEM)
 
-	if cpu.Cmp(*cpu4) == 1 || mem.Cmp(*mem16Gi) == 1 {
+	if cpu.Cmp(*cpu32) == 1 || mem.Cmp(*mem128Gi) == 1 {
+		return containerResourcesSP8
+	}
+
+	if (cpu.Cmp(*cpu16) == 1 && cpu.Cmp(*cpu32) != 1) || (mem.Cmp(*mem64Gi) == 1 && mem.Cmp(*mem128Gi) != 1) {
+		return containerResourcesSP7
+	}
+
+	if (cpu.Cmp(*cpu8) == 1 && cpu.Cmp(*cpu16) != 1) || (mem.Cmp(*mem32Gi) == 1 && mem.Cmp(*mem64Gi) != 1) {
+		return containerResourcesSP6
+	}
+
+	if (cpu.Cmp(*cpu4) == 1 && cpu.Cmp(*cpu8) != 1) || (mem.Cmp(*mem16Gi) == 1 && mem.Cmp(*mem32Gi) != 1) {
 		return containerResourcesSP5
 	}
 
@@ -539,11 +625,6 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 		return nil, nil
 	}
 
-	if k8sProbe.Exec != nil {
-		p.logger.Warn("probe of type Exec is not supported, skipping")
-		return nil, nil
-	}
-
 	probe := &workload_models.V1Probe{
 		FailureThreshold:    k8sProbe.FailureThreshold,
 		InitialDelaySeconds: k8sProbe.InitialDelaySeconds,
@@ -573,6 +654,9 @@ func (p *StackpathProvider) getWorkloadContainerProbeFrom(k8sProbe *v1.Probe, co
 		probe.TCPSocket = &workload_models.V1TCPSocketAction{
 			Port: port,
 		}
+	}
+	if k8sProbe.Exec != nil {
+		probe.Exec = &workload_models.V1ExecAction{Command: k8sProbe.Exec.Command}
 	}
 
 	return probe, nil

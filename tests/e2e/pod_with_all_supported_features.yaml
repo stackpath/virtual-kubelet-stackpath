@@ -24,6 +24,15 @@ spec:
       - name: ndots
         value: "2"
 
+  securityContext:
+    runAsUser: 2000
+    runAsGroup: 3000
+    runAsNonRoot: true
+    supplementalGroups: [100, 200]
+    sysctls:
+      - name: net.core.somaxconn
+        value: "1024"
+
   initContainers:
     - name: init-container
       image: busybox:1.28
@@ -32,7 +41,7 @@ spec:
 
   containers:
     - name: webserver
-      image: nginx:latest
+      image: nginxinc/nginx-unprivileged:latest
       command:
         - "nginx"
       args:
@@ -54,6 +63,15 @@ spec:
           memory: "4Gi"
           cpu: "2"
 
+      securityContext:
+        runAsUser: 2000
+        runAsGroup: 3000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: true
+        capabilities:
+          add: ["NET_ADMIN"]
+          drop: ["LINUX_IMMUTABLE"]
+
       volumeMounts:
         - mountPath: "/disk-1"
           name: volume-1
@@ -66,6 +84,9 @@ spec:
         tcpSocket:
           port: 80
       livenessProbe:
+        exec:
+          command:
+            - uname
         tcpSocket:
           port: 80
         initialDelaySeconds: 5
@@ -83,9 +104,11 @@ spec:
         timeoutSeconds: 10
         failureThreshold: 1
 
-      #exec hook is not supported yet
       lifecycle:
-        preStart:
+        preStop:
+          exec:
+            command:
+              - uname
           httpGet:
             port: 80
             path: shutdown
