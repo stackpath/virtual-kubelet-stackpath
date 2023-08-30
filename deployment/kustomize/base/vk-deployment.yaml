@@ -33,7 +33,7 @@ spec:
       command: ["sh", "-c"]
       args:
         - |
-          openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -subj "/CN=sp-vk" -keyout /etc/virtual-kubelet/key.pem -out /etc/virtual-kubelet/cert.pem -addext "subjectAltName = DNS:localhost,DNS:sp-virtual-kubelet-apiserver.default,DNS:sp-virtual-kubelet-apiserver.default.svc"
+          openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -subj "/CN=sp-vk" -keyout /etc/virtual-kubelet/key.pem -out /etc/virtual-kubelet/cert.pem
       volumeMounts:
         - name: certs-volume
           mountPath: /etc/virtual-kubelet
