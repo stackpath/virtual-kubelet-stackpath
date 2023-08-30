@@ -1,20 +1,20 @@
 resources:
-- namespace.yaml
-- vk-deployment.yaml
-- cluster-role.yaml
-- service-account.yaml
+  - namespace.yaml
+  - vk-deployment.yaml
+  - cluster-role.yaml
+  - service-account.yaml
 
 namespace: default
 
 secretGenerator:
-- name: sp-vk-secrets
-  env: config.properties
+  - name: sp-vk-secrets
+    env: config.properties
 
 configMapGenerator:
-- name: sp-vk-location
-  literals:
-  - SP_CITY_CODE=DFW
+  - name: sp-vk-location
+    literals:
+      - SP_CITY_CODE=DFW
 
 images:
-- name: ghcr.io/stackpath/virtual-kubelet-stackpath
-  newTag: v0.2.0
+  - name: ghcr.io/stackpath/virtual-kubelet-stackpath
+    newTag: v0.3.0
