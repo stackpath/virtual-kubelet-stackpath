@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 )
 
 // GetWorkloadInstanceReader is a Reader for the GetWorkloadInstance structure.

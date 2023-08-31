@@ -72,15 +72,13 @@ generate:
 	@echo "==> Generating mocks..."
 
 	mockgen -mock_names ClientService=InstancesClientService -destination=internal/mocks/mock_instances_client.go \
-		-package=mocks github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instances ClientService
-	mockgen -mock_names ClientService=WorkloadsClientService -destination=internal/mocks/mock_workloads_client.go \
-		-package=mocks github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads ClientService
+		-package=mocks github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instances ClientService
 	mockgen -mock_names ClientService=WorkloadClientService -destination=internal/mocks/mock_workload_client.go \
-		-package=mocks github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workload ClientService
+		-package=mocks github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload ClientService
 	mockgen -mock_names ClientService=InstanceClientService -destination=internal/mocks/mock_instance_client.go \
-		-package=mocks github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance ClientService
+		-package=mocks github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance ClientService
 	mockgen -mock_names ClientService=InstanceLogsClientService -destination=internal/mocks/mock_instance_logs_client.go \
-		-package=mocks github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance_logs ClientService
+		-package=mocks github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance_logs ClientService
 	mockgen -destination=internal/mocks/mock_k8s_listers.go -package=mocks k8s.io/client-go/listers/core/v1 ComponentStatusLister,ConfigMapLister,ConfigMapNamespaceLister,EndpointsLister,EndpointsNamespaceLister,EventLister,EventNamespaceLister,LimitRangeLister,LimitRangeNamespaceLister,NamespaceLister,NodeLister,PersistentVolumeLister,PersistentVolumeClaimLister,PersistentVolumeClaimNamespaceLister,PodLister,PodNamespaceLister,PodTemplateLister,PodTemplateNamespaceLister,ReplicationControllerLister,ReplicationControllerNamespaceLister,ResourceQuotaLister,ResourceQuotaNamespaceLister,SecretLister,SecretNamespaceLister,ServiceLister,ServiceNamespaceLister,ServiceAccountLister,ServiceAccountNamespaceLister
 
 

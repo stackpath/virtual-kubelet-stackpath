@@ -18,6 +18,9 @@ import (
 // swagger:model v1Probe
 type V1Probe struct {
 
+	// exec
+	Exec *V1ExecAction `json:"exec,omitempty"`
+
 	// The minimum consecutive failures for a probe to be considered failed after having succeeded
 	//
 	// Defaults to 3. Minimum value is 1.
@@ -52,6 +55,10 @@ type V1Probe struct {
 func (m *V1Probe) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateExec(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateHTTPGet(formats); err != nil {
 		res = append(res, err)
 	}
@@ -63,6 +70,25 @@ func (m *V1Probe) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *V1Probe) validateExec(formats strfmt.Registry) error {
+	if swag.IsZero(m.Exec) { // not required
+		return nil
+	}
+
+	if m.Exec != nil {
+		if err := m.Exec.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("exec")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("exec")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -108,6 +134,10 @@ func (m *V1Probe) validateTCPSocket(formats strfmt.Registry) error {
 func (m *V1Probe) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.contextValidateExec(ctx, formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.contextValidateHTTPGet(ctx, formats); err != nil {
 		res = append(res, err)
 	}
@@ -119,6 +149,22 @@ func (m *V1Probe) ContextValidate(ctx context.Context, formats strfmt.Registry) 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *V1Probe) contextValidateExec(ctx context.Context, formats strfmt.Registry) error {
+
+	if m.Exec != nil {
+		if err := m.Exec.ContextValidate(ctx, formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("exec")
+			} else if ce, ok := err.(*errors.CompositeError); ok {
+				return ce.ValidateName("exec")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 

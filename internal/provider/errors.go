@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
 	"golang.org/x/oauth2"
 )
 
