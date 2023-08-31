@@ -122,3 +122,22 @@ spec:
     kubernetes.io/role: agent
     type: virtual-kubelet
 ```
+
+## Notes
+
+### K3S known issue with http listener proxy
+
+In case you see an issue with deployment in k3s failing to get logs or exec with the error:
+`proxy error from 127.0.0.1:6443 while dialing <ip>:10250, code 503: 503 Service Unavailable`
+this is an issue with k3s, to work around it,  it's recommended to set the `-egress-selector-mode=disabled` in the k3s settings.
+for example if using k3d to create the cluster, the following config should be added.
+
+```yaml
+apiVersion: k3d.io/v1alpha2 
+kind: Simple
+name: mycluster 
+options:
+  k3s: 
+    extraServerArgs: 
+    - --egress-selector-mode=disabled
+```
