@@ -1,64 +1,90 @@
 #!/bin/bash
 
-#install deps
+set -e
+
+# Function to make a Kubernetes API request
+function kubectl_request {
+    local method="$1"
+    local path="$2"
+    local data="$3"
+    
+    curl -s -X "$method" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+        -d "$data" \
+        "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT$path" -k | jq
+}
+
+# Install dependencies
 apt update -y
 apt install jq curl net-tools vim openssl original-awk gettext-base -y
 
-#EKS issue https://github.com/aws/containers-roadmap/issues/1604
-
 export NODE_NAME=$(hostname)
-export INTERNAL_IP=$(ifconfig eth0 | grep inet | head -n 1 | awk '{print $2}')
+export INTERNAL_IP=$(ifconfig eth0 | awk '/inet / {print $2}')
 
+# Retrieve providerID
+PROVIDER_ID=$(kubectl_request "GET" "/api/v1/nodes" "" | jq ".items | .[].spec.providerID")
+SIGNER_NAME="kubernetes.io/kube-apiserver-client"
+USAGES="[\"client auth\"]"
+
+# Check if providerID contains "eks"
+# EKS issue https://github.com/aws/containers-roadmap/issues/1604
+if [[ "$PROVIDER_ID" == *"aws"* ]]; then
+    SIGNER_NAME="beta.eks.amazonaws.com/app-serving"
+    USAGES="[\"server auth\"]"
+fi
+
+# Generate key and CSR
 openssl genrsa -out /etc/virtual-kubelet/key.pem 2048
-openssl req -new -key /etc/virtual-kubelet/key.pem -out  /etc/virtual-kubelet/vk-sp.csr -config <(envsubst < /tmp/cert/csr.conf)
+openssl req -new -key /etc/virtual-kubelet/key.pem -out /etc/virtual-kubelet/vk-sp.csr -config <(envsubst < /tmp/cert/csr.conf)
 
 CSR=$(cat /etc/virtual-kubelet/vk-sp.csr | base64 | tr -d "\n")
 
- curl -X POST \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-          --data '{
-            "kind": "CertificateSigningRequest",
-            "apiVersion": "certificates.k8s.io/v1",
-            "metadata": {
-                "name": "vk-sp"
-            },
-            "spec": {
-              "request": "'${CSR}'",
-              "signerName": "kubernetes.io/kube-apiserver-client",
-              "expirationSeconds": 86400,
-            "usages": ["digital signature", "key encipherment", "server auth"]
-            }
-          }' \
-        "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/apis/certificates.k8s.io/v1/certificatesigningrequests?fieldManager=kubectl-client-side-apply&fieldValidation=Strict" -k | jq
+# Create and approve CSR
+body='{
+    "kind": "CertificateSigningRequest",
+    "apiVersion": "certificates.k8s.io/v1",
+    "metadata": {
+        "name": "vk-sp"
+    },
+    "spec": {
+        "request": "'${CSR}'",
+        "signerName": "'${SIGNER_NAME}'",
+        "expirationSeconds": 315360000,
+        "usages": '${USAGES}'
+    }
+}'
+kubectl_request "POST" "/apis/certificates.k8s.io/v1/certificatesigningrequests?fieldManager=kubectl-client-side-apply&fieldValidation=Strict" "${body}"
 
 sleep 10
 
- curl -X PUT \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-          --data '{
-          "kind": "CertificateSigningRequest",
-          "apiVersion": "certificates.k8s.io/v1",
-          "metadata": {
-            "name": "vk-sp"
-          },
-          "status": {
-            "conditions": [
-              {
+kubectl_request "PUT" "/apis/certificates.k8s.io/v1/certificatesigningrequests/vk-sp/approval" '{
+    "kind": "CertificateSigningRequest",
+    "apiVersion": "certificates.k8s.io/v1",
+    "metadata": {
+        "name": "vk-sp"
+    },
+    "status": {
+        "conditions": [
+            {
                 "type": "Approved",
                 "status": "True",
                 "reason": "KubectlApprove",
                 "message": "This CSR was approved by kubectl certificate approve."
-              }
-            ]
-          }
-        }' \
-        "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/apis/certificates.k8s.io/v1/certificatesigningrequests/vk-sp/approval" -k | jq
+            }
+        ]
+    }
+}'
 
 sleep 10
 
-curl -X GET  \
-    -H "Accept: application/json" \
-    -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-    "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/apis/certificates.k8s.io/v1/certificatesigningrequests/vk-sp" -k | jq .status.certificate -r | base64 -d > /etc/virtual-kubelet/cert.pem
+# Get and save the certificate
+kubectl_request "GET" "/apis/certificates.k8s.io/v1/certificatesigningrequests/vk-sp" "" | jq -r '.status.certificate' | base64 -d > /etc/virtual-kubelet/cert.pem
+
+# Check if the certificate is valid
+if openssl x509 -noout -in /etc/virtual-kubelet/cert.pem; then 
+    echo "Certificate successfully generated and signed"
+else 
+    echo "Error during certificate generation. Falling back to self-signed certificate."
+    openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -subj "/CN=sp-vk" -keyout /etc/virtual-kubelet/key.pem -out /etc/virtual-kubelet/cert.pem
+fi
