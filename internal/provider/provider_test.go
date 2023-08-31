@@ -1,23 +1,29 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	gomock "github.com/golang/mock/gomock"
 	_ "github.com/golang/mock/mockgen/model"
 	"github.com/google/uuid"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/instance"
-	workloads "github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client/workloads"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_models"
-	"github.com/stackpath/vk-stackpath-provider/internal/config"
-	mocks "github.com/stackpath/vk-stackpath-provider/internal/mocks"
-	"github.com/stackpath/vk-stackpath-provider/internal/sshtest"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/instance_logs"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client/workload"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_models"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/config"
+	mocks "github.com/stackpath/virtual-kubelet-stackpath/internal/mocks"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/sshtest"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	"github.com/virtual-kubelet/virtual-kubelet/node/nodeutil"
 	"gotest.tools/assert"
@@ -42,8 +48,8 @@ func TestCreatePod(t *testing.T) {
 	defer mockController.Finish()
 	ctx := context.Background()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc}
+	wsc := mocks.NewWorkloadClientService(mockController)
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc}
 
 	provider, err := createTestProvider(ctx, mocks.NewMockConfigMapLister(mockController), mocks.NewMockSecretLister(mockController), mocks.NewMockPodLister(mockController), &stackPathClientMock)
 	if err != nil {
@@ -71,7 +77,7 @@ func TestCreatePod(t *testing.T) {
 			pod:         testPod,
 			initMockedCalls: func() {
 				w, _ := provider.getWorkloadFrom(testPod)
-				params := workloads.CreateWorkloadParams{
+				params := workload.CreateWorkloadParams{
 					Body:    &workload_models.V1CreateWorkloadRequest{Workload: w},
 					StackID: provider.apiConfig.StackID,
 					Context: ctx,
@@ -85,7 +91,7 @@ func TestCreatePod(t *testing.T) {
 			pod:         badPod,
 			initMockedCalls: func() {
 				w, _ := provider.getWorkloadFrom(testPod)
-				params := workloads.CreateWorkloadParams{
+				params := workload.CreateWorkloadParams{
 					Body:    &workload_models.V1CreateWorkloadRequest{Workload: w},
 					StackID: provider.apiConfig.StackID,
 					Context: ctx,
@@ -116,8 +122,8 @@ func TestDeletePod(t *testing.T) {
 	defer mockController.Finish()
 	ctx := context.Background()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc}
+	wsc := mocks.NewWorkloadClientService(mockController)
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc}
 	testPod := createTestPod(podName, podNamespace)
 
 	provider, err := createTestProvider(ctx, mocks.NewMockConfigMapLister(mockController), mocks.NewMockSecretLister(mockController), mocks.NewMockPodLister(mockController), &stackPathClientMock)
@@ -125,7 +131,7 @@ func TestDeletePod(t *testing.T) {
 		t.Fatal("failed to create the test provider", err)
 	}
 
-	params := workloads.DeleteWorkloadParams{
+	params := workload.DeleteWorkloadParams{
 		StackID:    provider.apiConfig.StackID,
 		WorkloadID: provider.getWorkloadSlug(podNamespace, podName),
 		Context:    ctx,
@@ -193,6 +199,7 @@ func TestGetPodStatus(t *testing.T) {
 		string(workload_models.Workloadv1InstanceInstancePhaseCOMPLETED):  v1.PodSucceeded,
 		string(workload_models.Workloadv1InstanceInstancePhaseSTOPPED):    v1.PodSucceeded,
 		string(workload_models.Workloadv1InstanceInstancePhaseFAILED):     v1.PodFailed,
+		string(workload_models.Workloadv1InstanceInstancePhaseDELETING):   v1.PodPending,
 	}
 
 	for workloadPhase, podPhase := range phases {
@@ -348,14 +355,110 @@ func TestGetMetricsResource(t *testing.T) {
 
 func TestGetContainerLogs(t *testing.T) {
 	ctx := context.Background()
+	podName := "test-pod"
+	podNamespace := "test-ns"
+	containerName := "test-container"
+	now := time.Now()
 
-	provider, err := createTestProvider(ctx, nil, nil, nil, nil)
+	mockController := gomock.NewController(t)
+	defer mockController.Finish()
+
+	lcs := mocks.NewInstanceLogsClientService(mockController)
+	stackPathClientMock := workload_client.EdgeCompute{InstanceLogs: lcs}
+
+	provider, err := createTestProvider(ctx, nil, nil, nil, &stackPathClientMock)
 	if err != nil {
 		t.Fatal("failed to create the test provider", err)
 	}
 
-	_, err = provider.GetContainerLogs(ctx, "", "", "", api.ContainerLogOpts{})
-	assert.Equal(t, err, nil)
+	testCases := []struct {
+		description     string
+		initMockedCalls func()
+		expectedError   error
+		opts            api.ContainerLogOpts
+		expectedOutput  string
+	}{
+		{
+			description: "Unexpected EOF",
+			initMockedCalls: func() {
+				follow := false
+				previous := false
+				timestamps := false
+				params := instance_logs.GetLogsParams{
+					ContainerName: &containerName,
+					Follow:        &follow,
+					InstanceName:  "test-ns-test-pod-city-code-jfk-0",
+					Previous:      &previous,
+					SinceTime:     &strfmt.DateTime{},
+					Context:       ctx,
+					StackID:       provider.apiConfig.StackID,
+					Timestamps:    &timestamps,
+					WorkloadID:    "test-ns-test-pod",
+				}
+
+				lcs.EXPECT().GetLogs(&params, nil, gomock.Any()).Return(nil, io.ErrUnexpectedEOF).Times(1)
+			},
+			opts:           api.ContainerLogOpts{},
+			expectedOutput: "the container logs retrieval process has been interrupted due to 60 seconds of inactivity",
+		},
+		{
+			description: "Successfully read the logs",
+			initMockedCalls: func() {
+				follow := false
+				previous := true
+				timestamps := true
+				sinceSeconds := "10"
+				tail := "100"
+				limitBytes := "200"
+				sinceTime := strfmt.DateTime(now)
+
+				params := instance_logs.GetLogsParams{
+					ContainerName: &containerName,
+					Follow:        &follow,
+					InstanceName:  "test-ns-test-pod-city-code-jfk-0",
+					Previous:      &previous,
+					SinceTime:     &sinceTime,
+					Context:       ctx,
+					StackID:       provider.apiConfig.StackID,
+					Timestamps:    &timestamps,
+					SinceSeconds:  &sinceSeconds,
+					TailLines:     &tail,
+					LimitBytes:    &limitBytes,
+					WorkloadID:    "test-ns-test-pod",
+				}
+
+				var b bytes.Buffer
+				writer := io.Writer(&b)
+				ok := instance_logs.GetLogsOK{Payload: writer}
+				lcs.EXPECT().GetLogs(&params, nil, gomock.Any()).Return(&ok, nil).Times(1)
+			},
+			opts: api.ContainerLogOpts{
+				Tail:         100,
+				Follow:       false,
+				Timestamps:   true,
+				Previous:     true,
+				SinceSeconds: 10,
+				SinceTime:    now,
+				LimitBytes:   200,
+			},
+			expectedOutput: "",
+		},
+	}
+
+	for _, c := range testCases {
+		t.Run(c.description, func(t *testing.T) {
+			c.initMockedCalls()
+			reader, err := provider.GetContainerLogs(ctx, podNamespace, podName, containerName, c.opts)
+			assert.NilError(t, err)
+
+			output, err := ioutil.ReadAll(reader)
+			if err != nil {
+				t.Fatal("Couldn't read the response", err)
+			}
+
+			assert.Equal(t, c.expectedOutput, string(output))
+		})
+	}
 }
 
 func TestGetStatsSummary(t *testing.T) {
@@ -378,11 +481,11 @@ func TestGetPod(t *testing.T) {
 	defer mockController.Finish()
 	ctx := context.Background()
 
-	wsc := mocks.NewWorkloadsClientService(mockController)
+	wsc := mocks.NewWorkloadClientService(mockController)
 	isc := mocks.NewInstanceClientService(mockController)
 	activePodsLister := mocks.NewMockPodLister(mockController)
 	mockPodsNamespaceLister := mocks.NewMockPodNamespaceLister(mockController)
-	stackPathClientMock := workload_client.EdgeCompute{Workloads: wsc, Instance: isc}
+	stackPathClientMock := workload_client.EdgeCompute{Workload: wsc, Instance: isc}
 
 	pod := createTestPod(podName, podNamespace)
 	pod.Status.Phase = v1.PodPending
@@ -401,7 +504,7 @@ func TestGetPod(t *testing.T) {
 		{
 			description: "successfully gets a pod and updates its status accordingly",
 			initMockedCalls: func() {
-				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadOK{
+				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadOK{
 					Payload: &workload_models.V1GetWorkloadResponse{
 						Workload: &workload_models.V1Workload{
 							Name: podName,
@@ -442,7 +545,7 @@ func TestGetPod(t *testing.T) {
 		{
 			description: "fails to get a pod due to instance API failure",
 			initMockedCalls: func() {
-				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadOK{
+				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadOK{
 					Payload: &workload_models.V1GetWorkloadResponse{
 						Workload: &workload_models.V1Workload{
 							Name: podName,
@@ -465,7 +568,7 @@ func TestGetPod(t *testing.T) {
 		{
 			description: "fails to get a pod due to an error occurred while retrieving the pod form the indexer",
 			initMockedCalls: func() {
-				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workloads.GetWorkloadOK{
+				wsc.EXPECT().GetWorkload(gomock.Any(), gomock.Any()).Return(&workload.GetWorkloadOK{
 					Payload: &workload_models.V1GetWorkloadResponse{
 						Workload: &workload_models.V1Workload{
 							Name: podName,
@@ -613,6 +716,80 @@ func createTestPod(podName, podNamespace string) *v1.Pod {
 					},
 
 					LivenessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromString("http"),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+					StartupProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromString("http"),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromInt(8080),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+				},
+			},
+			InitContainers: []v1.Container{
+				{
+					Name: "init",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          "http",
+							ContainerPort: 8080,
+						},
+					},
+					Resources: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							"cpu":    resource.MustParse("0.99"),
+							"memory": resource.MustParse("1.5G"),
+						},
+						Limits: v1.ResourceList{
+							"cpu":    resource.MustParse("3999m"),
+							"memory": resource.MustParse("8010M"),
+						},
+					},
+
+					LivenessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromString("http"),
+								Path: "/",
+							},
+						},
+						InitialDelaySeconds: 10,
+						PeriodSeconds:       5,
+						TimeoutSeconds:      60,
+						SuccessThreshold:    3,
+						FailureThreshold:    5,
+					},
+					StartupProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
 								Port: intstr.FromString("http"),

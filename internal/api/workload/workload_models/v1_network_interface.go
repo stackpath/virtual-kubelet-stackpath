@@ -19,19 +19,23 @@ import (
 // swagger:model v1NetworkInterface
 type V1NetworkInterface struct {
 
-	// Enable one to one NAT
+	// Provide one to one NAT for this specific network’s interface
+	//
+	// This is an optional property used to enable OR disable the NAT'ing of the specifc network interface.NAT is enabled by default on the first / primary interface and disabled on secondary / multi interfacesUser can disable NAT on the first / primary interface, by marking this property - falseUser can enable NAT on secondary / multi interface, by marking this property - trueExcludeNAT Annotation supercedes this property
 	EnableOneToOneNat bool `json:"enableOneToOneNat,omitempty"`
 
-	// IPFamilies of IPs which will be assigned to network interface
+	// A list of IP families to use for interface ip assignments
+	//
+	// This is an optional property and supports ['IPv4'] or ['IPv4', 'IPv6'] list
 	IPFamilies []*V1IPFamily `json:"ipFamilies"`
 
-	// A network IPv6 subnet's name
+	// An IPv6 subnet interface's slug. This is an optional property used to attach a specific network interface to a ipv6 subnet.
 	IPV6Subnet string `json:"ipv6Subnet,omitempty"`
 
-	// A network interface's name
+	// A network interface's slug
 	Network string `json:"network,omitempty"`
 
-	// A network IPv4 subnet's name
+	// An IPv4 subnet interface's slug. This is an optional property used to attach a specific network interface to a IPv4 subnet.
 	Subnet string `json:"subnet,omitempty"`
 }
 

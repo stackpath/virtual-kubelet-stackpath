@@ -14,7 +14,12 @@ configMapGenerator:
   - name: sp-vk-location
     literals:
       - SP_CITY_CODE=DFW
+  - name: cert-gen
+    files:
+      - "scripts/cert-gen.sh"
+      - "scripts/csr.conf"
 
 images:
   - name: ghcr.io/stackpath/virtual-kubelet-stackpath
     newTag: v0.4.0
+

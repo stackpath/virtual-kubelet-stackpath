@@ -10,8 +10,8 @@ import (
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
-	"github.com/stackpath/vk-stackpath-provider/internal/api/workload/workload_client"
-	"github.com/stackpath/vk-stackpath-provider/internal/config"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/api/workload/workload_client"
+	"github.com/stackpath/virtual-kubelet-stackpath/internal/config"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 	stats "github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
@@ -219,18 +219,17 @@ func (p *StackpathProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 // GetContainerLogs returns the logs of a pod by name that is running as a StackPath workload
-//
-// NOP. Not Implemented in this version
 func (p *StackpathProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	return nil, nil
+	reader := p.getInstanceLogsReader(ctx, namespace, podName, containerName, opts)
+	return reader, nil
 }
 
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
-func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
+func (p *StackpathProvider) RunInContainer(ctx context.Context, namespace, podName, containerName string, cmd []string, attach api.AttachIO) error {
 
 	conf := &ssh.ClientConfig{
-		User:            p.getSSHUsername(namespace, name, container),
+		User:            p.getSSHUsername(namespace, podName, containerName),
 		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
 		Auth: []ssh.AuthMethod{
 			ssh.Password(p.apiConfig.ClientSecret),

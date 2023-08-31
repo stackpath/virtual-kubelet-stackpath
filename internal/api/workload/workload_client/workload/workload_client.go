@@ -28,28 +28,40 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
-	WatchNetworks2(params *WatchNetworks2Params, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*WatchNetworks2OK, error)
+	CreateWorkload(params *CreateWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateWorkloadOK, error)
+
+	DeleteWorkload(params *DeleteWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteWorkloadNoContent, error)
+
+	GetLocations(params *GetLocationsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetLocationsOK, error)
+
+	GetWorkload(params *GetWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadOK, error)
+
+	GetWorkloads(params *GetWorkloadsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadsOK, error)
+
+	PutWorkload(params *PutWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*PutWorkloadOK, error)
+
+	UpdateWorkload(params *UpdateWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateWorkloadOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
 
 /*
-WatchNetworks2 watch networks2 API
+CreateWorkload creates a new workload
 */
-func (a *Client) WatchNetworks2(params *WatchNetworks2Params, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*WatchNetworks2OK, error) {
+func (a *Client) CreateWorkload(params *CreateWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateWorkloadOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewWatchNetworks2Params()
+		params = NewCreateWorkloadParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "WatchNetworks2",
-		Method:             "GET",
-		PathPattern:        "/workload/v1/stacks/{stack_id}/watch/networks",
+		ID:                 "CreateWorkload",
+		Method:             "POST",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"https"},
 		Params:             params,
-		Reader:             &WatchNetworks2Reader{formats: a.formats},
+		Reader:             &CreateWorkloadReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -62,12 +74,240 @@ func (a *Client) WatchNetworks2(params *WatchNetworks2Params, authInfo runtime.C
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*WatchNetworks2OK)
+	success, ok := result.(*CreateWorkloadOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
-	unexpectedSuccess := result.(*WatchNetworks2Default)
+	unexpectedSuccess := result.(*CreateWorkloadDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+DeleteWorkload deletes a workload
+*/
+func (a *Client) DeleteWorkload(params *DeleteWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*DeleteWorkloadNoContent, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDeleteWorkloadParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "DeleteWorkload",
+		Method:             "DELETE",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads/{workload_id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &DeleteWorkloadReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*DeleteWorkloadNoContent)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*DeleteWorkloadDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetLocations retrieves the locations a workload may be created in
+*/
+func (a *Client) GetLocations(params *GetLocationsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetLocationsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetLocationsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetLocations",
+		Method:             "GET",
+		PathPattern:        "/workload/v1/locations",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &GetLocationsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetLocationsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetLocationsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetWorkload retrieves an individual workload
+*/
+func (a *Client) GetWorkload(params *GetWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetWorkloadParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetWorkload",
+		Method:             "GET",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads/{workload_id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &GetWorkloadReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetWorkloadOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetWorkloadDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetWorkloads retrieves a stack s workloads
+*/
+func (a *Client) GetWorkloads(params *GetWorkloadsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetWorkloadsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetWorkloadsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetWorkloads",
+		Method:             "GET",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &GetWorkloadsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetWorkloadsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetWorkloadsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+PutWorkload replaces an existing workload
+*/
+func (a *Client) PutWorkload(params *PutWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*PutWorkloadOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPutWorkloadParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "PutWorkload",
+		Method:             "PUT",
+		PathPattern:        "/workload/v1/stacks/{workload.stack_id}/workloads/{workload.id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &PutWorkloadReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*PutWorkloadOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*PutWorkloadDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+UpdateWorkload updates a workload
+*/
+func (a *Client) UpdateWorkload(params *UpdateWorkloadParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateWorkloadOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUpdateWorkloadParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UpdateWorkload",
+		Method:             "PATCH",
+		PathPattern:        "/workload/v1/stacks/{stack_id}/workloads/{workload_id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &UpdateWorkloadReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UpdateWorkloadOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*UpdateWorkloadDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

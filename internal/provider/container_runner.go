@@ -34,7 +34,10 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 
 	if cr.attach.TTY() {
 		// Set up terminal modes
-		modes := ssh.TerminalModes{}
+		modes := ssh.TerminalModes{
+			ssh.ECHO:    0,
+			ssh.ECHOCTL: 0,
+		}
 		err = session.RequestPty("Xterm", 120, 60, modes)
 		if err != nil {
 			return err
@@ -60,20 +63,31 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	g, ctx := errgroup.WithContext(ctx)
 
-	//goroutine that is responsible for listening to the 'resize' channel and updating the session window measurements
+	// Goroutine responsible for listening to the 'resize' channel, updating the session
+	// window measurements, and handling session closure if the context is canceled
+	// or the terminal window is closed by the user.
 	g.Go(func() error {
 		for {
 			select {
 			case size := <-cr.attach.Resize():
+				// If the height and width are both 0, it likely indicates that the terminal
+				// window has been closed by the user. In this case, the SSH session is closed
+				// to terminate any running commands.
+				if size.Height == 0 && size.Width == 0 {
+					session.Close()
+					return nil
+				}
 				session.WindowChange(int(size.Height), int(size.Width))
 			case <-ctx.Done():
+				// If the context is canceled, the SSH session is closed to terminate any
+				// running commands.
+				session.Close()
 				return ctx.Err()
 			}
 		}
 	})
 
-	aout := cr.attach.Stdout()
-	if aout != nil {
+	if aout := cr.attach.Stdout(); aout != nil {
 		defer aout.Close()
 		g.Go(func() error {
 			io.Copy(aout, sessionStdoutPipe)
@@ -81,8 +95,7 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 		})
 	}
 
-	aerr := cr.attach.Stderr()
-	if aerr != nil {
+	if aerr := cr.attach.Stderr(); aerr != nil {
 		defer aerr.Close()
 		g.Go(func() error {
 			io.Copy(aerr, sessionStderrPipe)
@@ -90,8 +103,7 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 		})
 	}
 
-	ain := cr.attach.Stdin()
-	if ain != nil {
+	if ain := cr.attach.Stdin(); ain != nil {
 		g.Go(func() error {
 			io.Copy(sessionStdinPipe, ain)
 			return nil
@@ -106,5 +118,6 @@ func (cr *ContainerRunner) Exec(ctx context.Context, cmd []string) error {
 	})
 
 	err = g.Wait()
+
 	return err
 }
