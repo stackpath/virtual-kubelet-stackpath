@@ -12,7 +12,7 @@ This feature enables you to use the Kubernetes control plane to create and manag
 - **Startup, liveness and readiness probes**. Configure `startup`, `liveness` and `readiness` probes for your pods using - the Kubernetes startupProbe, livenessProbe and readinessProbe fields in your pod specification.
 - **Private images using image pull secrets**. Use Kubernetes image pull secrets to securely pull private container images from a registry using the Kubernetes `imagePullSecrets` field in your pod specification.
 - **Run in container**. Run commands inside your pods by calling `kubectl exec` and specifying the pod and command.
-- **Retrieve logs**. Dump or stream a pod's logs by calling `kubectl log [-f]` and specifying the pod.
+- **Retrieve logs**. Fetch or stream a pod's logs by calling `kubectl log [-f]` and specifying the pod.
 
 ## Limitations
 
