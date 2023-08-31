@@ -4,29 +4,29 @@ metadata:
   name: vk-sp
 spec:
   containers:
-  - name: vk-sp
-    image: ghcr.io/stackpath/virtual-kubelet-stackpath:v0.2.0
-    command: 
-      - virtual-kubelet
-    ports: 
-      - containerPort: 10250
-    envFrom:
-      - secretRef:
-          name: sp-vk-secrets
-      - configMapRef:
-          name: sp-vk-location
-    env:
-      - name: VKUBELET_POD_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
-      - name: APISERVER_CERT_LOCATION
-        value: /etc/virtual-kubelet/cert.pem
-      - name: APISERVER_KEY_LOCATION
-        value: /etc/virtual-kubelet/key.pem
-    volumeMounts:
-      - name: certs-volume
-        mountPath: /etc/virtual-kubelet
+    - name: vk-sp
+      image: ghcr.io/stackpath/virtual-kubelet-stackpath:v0.4.0
+      command:
+        - virtual-kubelet
+      ports:
+        - containerPort: 10250
+      envFrom:
+        - secretRef:
+            name: sp-vk-secrets
+        - configMapRef:
+            name: sp-vk-location
+      env:
+        - name: VKUBELET_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: APISERVER_CERT_LOCATION
+          value: /etc/virtual-kubelet/cert.pem
+        - name: APISERVER_KEY_LOCATION
+          value: /etc/virtual-kubelet/key.pem
+      volumeMounts:
+        - name: certs-volume
+          mountPath: /etc/virtual-kubelet
   initContainers:
     - name: cert-generator
       image: alpine/openssl
