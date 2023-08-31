@@ -24,8 +24,8 @@ export INTERNAL_IP=$(ifconfig eth0 | awk '/inet / {print $2}')
 
 # Retrieve providerID
 PROVIDER_ID=$(kubectl_request "GET" "/api/v1/nodes" "" | jq ".items | .[].spec.providerID")
-SIGNER_NAME="kubernetes.io/kube-apiserver-client"
-USAGES="[\"client auth\"]"
+SIGNER_NAME="kubernetes.io/kubelet-serving"
+USAGES="[\"digital signature\", \"key encipherment\", \"server auth\"]"
 
 # Check if providerID contains "eks"
 # EKS issue https://github.com/aws/containers-roadmap/issues/1604
