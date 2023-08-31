@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -56,8 +57,11 @@ func NewRuntime(ctx context.Context, clientID string, clientSecret string, apiHo
 	client := oauth2.NewClient(ctx, tokenSource)
 
 	// Create a new openAPI runtime
-	runtime := httptransport.NewWithClient(apiHost, defaultPath, []string{httpProtocol}, client)
-	runtime.Transport = NewUserAgentTransport(runtime.Transport, version)
+	r := httptransport.NewWithClient(apiHost, defaultPath, []string{httpProtocol}, client)
+	r.Transport = NewUserAgentTransport(r.Transport, version)
 
-	return runtime, nil
+	// Override text/plain consumer to consume this as a stream (required for getting container logs API)
+	r.Consumers[runtime.TextMime] = runtime.ByteStreamConsumer()
+
+	return r, nil
 }
