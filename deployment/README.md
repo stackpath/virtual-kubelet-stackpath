@@ -67,10 +67,6 @@ resources:
 namespace: sp-atl
 nameSuffix: -atl
 
-images:
-- name: ghcr.io/stackpath/virtual-kubelet-stackpath
-  newTag: v0.3.0
-
 configMapGenerator:
 - name: sp-vk-location
   behavior: replace
@@ -88,7 +84,6 @@ secretGenerator:
 
 - The resources section references the base resources that are inherited by this overlay, which includes a default Virtual Kubelet deployment configuration.
 - The namespace section specifies that the Virtual Kubelet deployment will be created in the sp-atl namespace.
-- The images section is used to define the version of the StackPath Virtual Kubelet image to be used.
 - The configMapGenerator section replaces the existing value of SP_CITY_CODE with `ATL`, which specifies the geographic location of the edge compute infrastructure.
 - The secretGenerator section merges the existing config.properties file with a new SP_STACK_ID value of <another_stack_id>. This updates the StackPath stack ID specified in `config.properties`.
 
