@@ -36,13 +36,13 @@ SP_CLIENT_SECRET=<your-client-secret>
 kubectl apply -k .
 ```
 
-This will create the Virtual Kubelet deployment in your Kubernetes cluster.
+This will create a default Virtual Kubelet deployment in your Kubernetes cluster.
 
-Note that a secret will be generated from the `config.properties` file specified in the `secretGenerator` section of the `kustomization.yaml` file. This secret contains the values of the environment variables specified in the `config.properties` file.
+> **Note:** A secret will be generated from the `config.properties` file specified in the `secretGenerator` section of the `kustomization.yaml` file. This secret contains the values of the environment variables specified in the `config.properties` file.
 
-## Updating Resources
+## Customize Deployment
 
-To customize the Virtual Kublet deployment, create an overlay directory (in this example `vk-deployment-updated`) within the `overlays` directory with a `kustomization.yaml` file that specifies the changes you want to make.
+To customize the Virtual Kublet deployment, create an overlay directory (in this example `sp-atl`) within the `overlays` directory with a `kustomization.yaml` file that specifies the changes you want to make.
 
 ```txt
 .
@@ -54,7 +54,7 @@ To customize the Virtual Kublet deployment, create an overlay directory (in this
 │   ├── service-account.yaml
 │   └── vk-deployment.yaml
 └── overlays
-    └── vk-deployment-updated
+    └── sp-atl
         └── kustomization.yaml
 ```
 
@@ -65,10 +65,11 @@ resources:
 - ../../base
 
 namespace: sp-atl
+nameSuffix: -atl
 
 images:
-- name: stackpath.com/virtual-kubelet
-  newTag: 0.0.2
+- name: ghcr.io/stackpath/virtual-kubelet-stackpath
+  newTag: v0.3.0
 
 configMapGenerator:
 - name: sp-vk-location
@@ -83,6 +84,8 @@ secretGenerator:
     - SP_STACK_ID=<another_stack_id>
 ```
 
+> **Note:** If you intend to utilize multiple Virtual Kubelets across various locations, it is advisable to establish an overlay for each location. You can leverage the `nameSuffix` parameter to generate unique name for Virtual Kubelet resources. This practice will prove invaluable in a future step when we need to reference a specific Virtual Kubelet node by name.
+
 - The resources section references the base resources that are inherited by this overlay, which includes a default Virtual Kubelet deployment configuration.
 - The namespace section specifies that the Virtual Kubelet deployment will be created in the sp-atl namespace.
 - The images section is used to define the version of the StackPath Virtual Kubelet image to be used.
@@ -92,7 +95,7 @@ secretGenerator:
 To deploy overlay, run the following command:
 
 ```bash
-kubectl apply -k overlays/vk-deployment-updated
+kubectl apply -k overlays/sp-atl
 ```
 
 ## Configuring Pods to Use Virtual Kubelet
@@ -101,14 +104,13 @@ Now that you've created a Virtual Kubelet pod after completing the steps above, 
 
 To use the Virtual Kubelet deployment to deploy workloads in the StackPath Edge Compute infrastructure, configure your pods to use the virtual-kubelet.io/provider toleration and type: virtual-kubelet node selector.
 
-Here is an example configuration that will create the simplest possible container in the sp-atl namespace by providing only a name (my-pod) and image (my-image):
+Here is an example configuration that will create the simplest possible container in the default namespace. This is achieved by specifying only a name (my-pod) and an image (my-image). To reference a Virtual Kubelet node by its hostname, you should set the `nodeSelector` field to `kubernetes.io/hostname`, followed by the value provided in `nameSuffix`. In this example, it is `-atl`.
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
   name: my-pod
-  namespace: sp-atl
 spec:
   containers:
   - name: my-container
@@ -120,5 +122,6 @@ spec:
     effect: NoSchedule
   nodeSelector: 
     kubernetes.io/role: agent
+    kubernetes.io/hostname: stackpath-edge-provider-atl
     type: virtual-kubelet
 ```

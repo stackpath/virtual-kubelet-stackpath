@@ -40,12 +40,14 @@ openssl req -new -key /etc/virtual-kubelet/key.pem -out /etc/virtual-kubelet/vk-
 
 CSR=$(cat /etc/virtual-kubelet/vk-sp.csr | base64 | tr -d "\n")
 
+CERT_NAME=vk-sp-$(date | md5sum  | awk '{print $1}')
+
 # Create and approve CSR
 body='{
     "kind": "CertificateSigningRequest",
     "apiVersion": "certificates.k8s.io/v1",
     "metadata": {
-        "name": "vk-sp"
+        "name": "'${CERT_NAME}'"
     },
     "spec": {
         "request": "'${CSR}'",
@@ -58,11 +60,11 @@ kubectl_request "POST" "/apis/certificates.k8s.io/v1/certificatesigningrequests?
 
 sleep 10
 
-kubectl_request "PUT" "/apis/certificates.k8s.io/v1/certificatesigningrequests/vk-sp/approval" '{
+kubectl_request "PUT" "/apis/certificates.k8s.io/v1/certificatesigningrequests/${CERT_NAME}/approval" '{
     "kind": "CertificateSigningRequest",
     "apiVersion": "certificates.k8s.io/v1",
     "metadata": {
-        "name": "vk-sp"
+        "name": "'${CERT_NAME}'"
     },
     "status": {
         "conditions": [
@@ -79,7 +81,10 @@ kubectl_request "PUT" "/apis/certificates.k8s.io/v1/certificatesigningrequests/v
 sleep 10
 
 # Get and save the certificate
-kubectl_request "GET" "/apis/certificates.k8s.io/v1/certificatesigningrequests/vk-sp" "" | jq -r '.status.certificate' | base64 -d > /etc/virtual-kubelet/cert.pem
+kubectl_request "GET" "/apis/certificates.k8s.io/v1/certificatesigningrequests/${CERT_NAME}" "" | jq -r '.status.certificate' | base64 -d > /etc/virtual-kubelet/cert.pem
+
+# Delete signing request
+kubectl_request "DELETE" "/apis/certificates.k8s.io/v1/certificatesigningrequests/${CERT_NAME}" ""
 
 # Check if the certificate is valid
 if openssl x509 -noout -in /etc/virtual-kubelet/cert.pem; then 
