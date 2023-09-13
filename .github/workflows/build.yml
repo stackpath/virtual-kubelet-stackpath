@@ -37,5 +37,7 @@ jobs:
           file: docker/Dockerfile
           build-args: |
             VERSION_FLAGS=-ldflags=-X main.buildVersion=${{ github.ref_name }} -X main.buildTime=${{ steps.date.outputs.date }}
-          tags: ghcr.io/stackpath/virtual-kubelet-stackpath:${{ github.ref_name }}
+          tags: |
+            ghcr.io/stackpath/virtual-kubelet-stackpath:${{ github.ref_name }}
+            ghcr.io/stackpath/virtual-kubelet-stackpath:latest
           labels: org.opencontainers.image.source=https://github.com/stackpath/virtual-kubelet-stackpath
