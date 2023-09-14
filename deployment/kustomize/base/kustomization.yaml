@@ -21,5 +21,4 @@ configMapGenerator:
 
 images:
   - name: ghcr.io/stackpath/virtual-kubelet-stackpath
-    newTag: v0.4.0
-
+    newTag: latest
