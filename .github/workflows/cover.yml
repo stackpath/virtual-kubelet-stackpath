@@ -15,7 +15,7 @@ jobs:
         env:
           TESTCOVERAGE_THRESHOLD: 84
         run: |
-          GO_FILES=$(go list ./... |grep -v 'vendor|e2e')
+          GO_FILES=$(go list ./... |egrep -v 'vendor|e2e')
           echo $GO_FILES | xargs -t -n4 go test -coverprofile=coverage.out -covermode=count  -cover -timeout=30s -parallel=4
           BASE_TOTAL=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
           if (( $(echo "$BASE_TOTAL $TESTCOVERAGE_THRESHOLD" | awk '{print ($1 > $2)}') )); then
@@ -30,7 +30,7 @@ jobs:
           ref: ${{ github.base_ref }}
       - name: Generate coverage report
         run: |
-          GO_FILES=$(go list ./... |grep -v 'vendor|e2e')
+          GO_FILES=$(go list ./... |egrep -v 'vendor|e2e')
           echo $GO_FILES | xargs -t -n4 go test -coverprofile=coverage.out -covermode=count  -cover -timeout=30s -parallel=4
           TARGET_TOTAL=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
           if (( $(echo "${{ env.BASE_TOTAL }} $TARGET_TOTAL" | awk '{print ($1 >= $2)}') )); then
