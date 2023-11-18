@@ -108,7 +108,7 @@ It is important to note that enabling remote management should be done with caut
 
 ## Pod Spec File Examples
 
-We've included some sample Pod spec files in the [tests/e2e](tests/e2e/) folder to help you get started with. These examples are intended to demonstrate how to configure the virtual kubelet to work with different types of StackPath workloads.
+We've included some sample Pod spec files in the [tests/e2e/podspecs](tests/e2e/podspecs) folder to help you get started with. These examples are intended to demonstrate how to configure the virtual kubelet to work with different types of StackPath workloads.
 
 To use one of these examples, simply copy the YAML file and modify it to suit your needs. You can then use `kubectl` to create the Pod in your Kubernetes cluster.
 

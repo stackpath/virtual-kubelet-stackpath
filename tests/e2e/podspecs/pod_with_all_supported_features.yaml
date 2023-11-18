@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webserver
+  namespace: vk-sp
+spec:
+  shareProcessNamespace: true
+  hostAliases:
+    - ip: "127.0.0.1"
+      hostnames:
+        - "foo.local"
+        - "bar.local"
+    - ip: "10.1.2.3"
+      hostnames:
+        - "foo.remote"
+        - "bar.remote"
+  dnsConfig:
+    nameservers:
+      - 192.0.2.1
+    searches:
+      - ns1.svc.cluster-domain.example
+      - my.dns.search.suffix
+    options:
+      - name: ndots
+        value: "2"
+
+  securityContext:
+    runAsUser: 2000
+    runAsGroup: 3000
+    runAsNonRoot: true
+    supplementalGroups: [100, 200]
+    sysctls:
+      - name: net.core.somaxconn
+        value: "1024"
+
+  initContainers:
+    - name: init-container
+      image: busybox:1.28
+      command: ["sh", "-c"]
+      args: ["echo hello there!;sleep 60;"]
+
+  containers:
+    - name: webserver
+      image: nginxinc/nginx-unprivileged:latest
+      command:
+        - "nginx"
+      args:
+        - "-d"
+        - "something"
+      ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+      env:
+        - name: VAR
+          value: val
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "250m"
+        limits:
+          memory: "4Gi"
+          cpu: "2"
+
+      securityContext:
+        runAsUser: 2000
+        runAsGroup: 3000
+        runAsNonRoot: true
+        allowPrivilegeEscalation: true
+        capabilities:
+          add: ["NET_ADMIN"]
+          drop: ["LINUX_IMMUTABLE"]
+
+      volumeMounts:
+        - mountPath: "/disk-1"
+          name: volume-1
+      startupProbe:
+        initialDelaySeconds: 1
+        periodSeconds: 5
+        timeoutSeconds: 1
+        successThreshold: 1
+        failureThreshold: 1
+        tcpSocket:
+          port: 80
+      livenessProbe:
+        exec:
+          command:
+            - uname
+        initialDelaySeconds: 5
+        periodSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 80
+          httpHeaders:
+            - name: Custom-Header
+              value: Awesome
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        successThreshold: 2
+        timeoutSeconds: 10
+        failureThreshold: 1
+
+      lifecycle:
+        preStop:
+          httpGet:
+            port: 80
+            path: shutdown
+        # postStart hook has to be only used when it is expected that the container will be started immediately.
+        # The hook is failing in most cases with httpGet/tcpSocket action handlers as hook is triggered immediately
+        # after container is created and most of the container applications does not start listening by that time.
+        # postStart:
+        #   httpGet:
+        #     httpHeaders:
+        #       - name: "Content-type"
+        #         value: "application/json"
+        #     path: /
+        #     port: 80
+        #     scheme: HTTP
+
+      imagePullPolicy: "Always"
+      workingDir: "/"
+      terminationMessagePath: "/var/log/nginx/error.log"
+      terminationMessagePolicy: "File"
+
+  volumes:
+    - name: volume-1
+      csi:
+        driver: virtual-kubelet.storage.compute.edgeengine.io
+        volumeAttributes:
+          size: "2Gi"
+
+  tolerations:
+    - key: virtual-kubelet.io/provider
+      operator: Equal
+      value: stackpath
+      effect: NoSchedule
+  nodeSelector:
+    kubernetes.io/role: agent
+    type: virtual-kubelet

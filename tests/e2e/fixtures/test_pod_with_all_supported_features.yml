@@ -1,8 +1,10 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: webserver
-  namespace: vk-sp
+  name: pod-test
+  namespace: vk-test
+  annotations:
+    workload.platform.stackpath.net/remote-management: "true"
 spec:
   shareProcessNamespace: true
   hostAliases:
@@ -37,16 +39,11 @@ spec:
     - name: init-container
       image: busybox:1.28
       command: ["sh", "-c"]
-      args: ["echo hello there!;sleep 60;"]
+      args: ["echo hello there!;sleep 1;"]
 
   containers:
-    - name: webserver
+    - name: webserver-test
       image: nginxinc/nginx-unprivileged:latest
-      command:
-        - "nginx"
-      args:
-        - "-d"
-        - "something"
       ports:
         - name: http
           containerPort: 80
@@ -82,19 +79,17 @@ spec:
         successThreshold: 1
         failureThreshold: 1
         tcpSocket:
-          port: 80
+          port: 8080
       livenessProbe:
         exec:
           command:
             - uname
-        tcpSocket:
-          port: 80
         initialDelaySeconds: 5
         periodSeconds: 10
       readinessProbe:
         httpGet:
           path: /
-          port: 80
+          port: 8080
           httpHeaders:
             - name: Custom-Header
               value: Awesome
@@ -103,14 +98,10 @@ spec:
         successThreshold: 2
         timeoutSeconds: 10
         failureThreshold: 1
-
       lifecycle:
         preStop:
-          exec:
-            command:
-              - uname
           httpGet:
-            port: 80
+            port: 8080
             path: shutdown
         # postStart hook has to be only used when it is expected that the container will be started immediately.
         # The hook is failing in most cases with httpGet/tcpSocket action handlers as hook is triggered immediately
